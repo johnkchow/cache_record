@@ -1,5 +1,6 @@
+require "cached_record/manager"
 require "cached_record/version"
 
-module CachedRecord
+class CachedRecord
   # Your code goes here...
 end
