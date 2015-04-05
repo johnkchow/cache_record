@@ -6,7 +6,7 @@ class CacheRecord
       @store = store
     end
 
-    def values(offset: self.offset, limit: self.limit)
+    def values(offset:, limit:)
       # first find the raw blocks that the offset/limit overlap
       #   load header block
       #     fetch from memcache
