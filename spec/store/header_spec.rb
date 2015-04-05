@@ -1,30 +1,31 @@
 require 'spec_helper'
 
+tests = [
+  {
+    block_sizes: [5,5,5],
+    tests: [
+      [
+        [2,5],
+        [0..1,2]
+      ],
+      [
+        [5,2],
+        [1..1,0]
+      ],
+      [
+        [7,8],
+        [1..2,2]
+      ],
+      [
+        [0,15],
+        [0..2,0]
+      ]
+    ]
+  }
+]
+
 describe CacheRecord::Store::Header do
   describe "#block_keys_for_offset_limit" do
-    tests = [
-      {
-        block_sizes: [5,5,5],
-        tests: [
-          [
-            [2,5],
-            [0..1,2]
-          ],
-          [
-            [5,2],
-            [1..1,0]
-          ],
-          [
-            [7,8],
-            [1..2,2]
-          ],
-          [
-            [0,15],
-            [0..2,0]
-          ]
-        ]
-      }
-    ]
     tests.each do |test|
       context "block sizes are #{test[:block_sizes]}" do
         test[:tests].each do |t|
