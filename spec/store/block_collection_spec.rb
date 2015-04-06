@@ -5,7 +5,7 @@ describe CachedRecord::Store::BlockCollection do
     subject do
       options = {
         adapter: mock_adapter,
-        order: :desc,
+        order: :asc,
         block_size: 100
       }
       described_class.new(header_key, options)
@@ -30,21 +30,21 @@ describe CachedRecord::Store::BlockCollection do
         "block1" => {
           first_key: 1,
           last_key: 4,
-          order: 'desc',
+          order: 'asc',
           size: 20,
           items: [[1,1],[2,2],[3,3],[4,4]],
         },
         "block2" => {
           first_key: 5,
           last_key: 8,
-          order: 'desc',
+          order: 'asc',
           size: 20,
           items: [[5,5],[6,6],[7,7],[8,8]],
         },
         "block3" => {
           first_key: 9,
           last_key: 12,
-          order: 'desc',
+          order: 'asc',
           size: 20,
           items: [[9,9],[10,10],[11,11],[12,12]],
         },
@@ -57,7 +57,7 @@ describe CachedRecord::Store::BlockCollection do
       {
         total_count: total_count,
         blocks: blocks,
-        order: "desc",
+        order: "asc",
       }
     end
 

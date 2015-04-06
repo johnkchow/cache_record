@@ -1,4 +1,4 @@
-require "avl_tree"
+require "red_black_tree"
 require "cached_record/util/assertion"
 require "cached_record/manager"
 require "cached_record/model/fields"

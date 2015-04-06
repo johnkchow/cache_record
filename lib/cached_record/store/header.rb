@@ -11,13 +11,13 @@ class CachedRecord
 
       def initialize(data)
         @order = data.fetch(:order)
-        @meta_blocks = (data[:blocks] || []).map {|b| MetaBlock.new(b)}
+        @meta_blocks_tree = build_meta_blocks_tree(data[:blocks] || [], @order)
         @total_count = data[:total_count] || 0
       end
 
       def to_hash
         {
-          blocks: @meta_blocks.map(&:to_hash),
+          blocks: @meta_blocks_tree.map {|k,v| v.to_hash },
           total_count: @total_count,
           order: @order,
         }
@@ -28,8 +28,9 @@ class CachedRecord
 
         offset_left = offset
         start_block_index = 0
+        meta_blocks = @meta_blocks_tree.values
 
-        while (block = @meta_blocks[start_block_index]) && (offset_left - block.count) >= 0
+        while (block = meta_blocks[start_block_index]) && (offset_left - block.count) >= 0
           offset_left -= block.count
           start_block_index += 1
         end
@@ -37,19 +38,39 @@ class CachedRecord
         first_block_offset = offset_left
 
         last_block_index = start_block_index
-        limit_left = limit - (@meta_blocks[start_block_index].count - first_block_offset + 1)
+        limit_left = limit - (meta_blocks[start_block_index].count - first_block_offset + 1)
         if limit_left > 0
-          while (block = @meta_blocks[last_block_index]) && limit_left > 0
+          while (block = meta_blocks[last_block_index]) && limit_left > 0
             limit_left -= block.count
             last_block_index += 1
           end
         end
 
-        block_keys = @meta_blocks[start_block_index..last_block_index].map do |b|
+        block_keys = meta_blocks[start_block_index..last_block_index].map do |b|
           b.key
         end
 
         [block_keys, first_block_offset]
+      end
+
+      protected
+
+      def build_meta_blocks_tree(blocks, order)
+        traversal = case order.to_sym
+                    when :asc
+                      :inorder
+                    when :desc
+                      :postorder
+                    else
+                      raise ArgumentError
+                    end
+
+        tree = RedBlackTree.new(nil, traversal)
+        blocks.each do |b|
+          meta_block = MetaBlock.new(b)
+          tree[meta_block.key] = meta_block
+        end
+        tree
       end
     end
   end

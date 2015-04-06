@@ -58,7 +58,7 @@ def build_header_data(block_sizes)
   end
   {
     sort_key: 'id',
-    order: :desc,
+    order: :asc,
     blocks: blocks,
     total_count: block_sizes.inject(&:+)
   }
