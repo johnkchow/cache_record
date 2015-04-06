@@ -1,4 +1,4 @@
-class CacheRecord
+class CachedRecord
   class ManagedCollection
     attr_reader :store
 

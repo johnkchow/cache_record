@@ -1,16 +1,15 @@
-class CacheRecord
+class CachedRecord
   class Store
     class Block
-      include CacheRecord::Model::Fields
+      include CachedRecord::Model::Fields
 
-      field :first_key, :last_key, :size, :sort_key, :order
+      field :first_key, :last_key, :size, :order
 
       attr_reader :key
 
-      def initialize(data, key:, sort_key:, order:, size:)
+      def initialize(data, key:, order:, size:)
         super(data)
         @key = key
-        self.sort_key ||= sort_key
         self.order ||= order
         self.size ||= size
       end
@@ -20,7 +19,7 @@ class CacheRecord
       end
 
       def items
-        attributes[:items].dup
+        attributes[:items].map(&:last)
       end
     end
   end

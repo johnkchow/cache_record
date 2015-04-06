@@ -1,19 +1,16 @@
-class CacheRecord
+class CachedRecord
   class Store
     class BlockCollection
       include Util::Assertion
 
-      attr_reader :header, :adapter, :sort_key, :order, :block_size
+      attr_reader :header, :adapter, :order, :block_size
 
       def initialize(header_key,
                      adapter:,
-                     sort_key:,
                      order:,
-                     header: nil,
-                     block_size: CacheRecord.config.block_size)
+                     block_size: CachedRecord.config.block_size)
         @adapter = adapter
         @header = get_header(header_key)
-        @sort_key = sort_key.to_sym
         @block_size = block_size
         @order = order.to_sym
         @blocks = {}
@@ -42,7 +39,33 @@ class CacheRecord
         items
       end
 
+      def insert(key, value)
+        if block_key = header.find_block_key(key)
+          block = get_block(block_key)
+
+          # call block.insert(item)
+          #   it does a binary search for the index where it'd be inserted
+          #   then it inserts the item
+          #   then it
+
+          # if split block
+          #   generate 2 new blocks with new cache keys
+          #   copy halves of the items from the original into the 2 blocks
+          #   update the new blocks first_key and last_key
+          #   replace the original metablock from header with new blocks info into header
+          #   update the headers meta block info for existing block
+          #   save all 3 together
+        else
+          # generate new block with new cache key
+          # insert
+        end
+      end
+
       protected
+
+      def get_block(key)
+        get_blocks(key).first
+      end
 
       def get_blocks(keys)
         ordered_blocks = Array.new(keys.length)
@@ -74,7 +97,6 @@ class CacheRecord
       def build_block(key, raw_block)
         Block.new(raw_block,
                   key: key,
-                  sort_key: sort_key,
                   order: order,
                   size: block_size
                  )
@@ -87,7 +109,6 @@ class CacheRecord
 
       def get_header_attributes
         {
-          sort_key: sort_key,
           order: order
         }
       end

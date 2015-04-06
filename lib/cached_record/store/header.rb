@@ -1,8 +1,8 @@
-class CacheRecord
+class CachedRecord
   class Store
     class Header
       class MetaBlock
-        include CacheRecord::Model::Fields
+        include CachedRecord::Model::Fields
 
         field :key, :first_key, :last_key, :count, :size
       end
@@ -10,7 +10,6 @@ class CacheRecord
       attr_reader :total_count
 
       def initialize(data)
-        @sort_key = data.fetch(:sort_key)
         @order = data.fetch(:order)
         @meta_blocks = (data[:blocks] || []).map {|b| MetaBlock.new(b)}
         @total_count = data[:total_count] || 0
@@ -20,7 +19,6 @@ class CacheRecord
         {
           blocks: @meta_blocks.map(&:to_hash),
           total_count: @total_count,
-          sort_key: @sort_key,
           order: @order,
         }
       end

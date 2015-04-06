@@ -1,4 +1,4 @@
-class CacheRecord
+class CachedRecord
   module Util
     module Assertion
       class AssertError < StandardError; end

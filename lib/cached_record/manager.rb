@@ -1,4 +1,4 @@
-class CacheRecord
+class CachedRecord
   class Manager
     def fetch(id)
       key = cache_key(id)

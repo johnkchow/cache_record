@@ -24,7 +24,7 @@ tests = [
   }
 ]
 
-describe CacheRecord::Store::Header do
+describe CachedRecord::Store::Header do
   describe "#block_keys_for_offset_limit" do
     tests.each do |test|
       context "block sizes are #{test[:block_sizes]}" do
@@ -33,7 +33,7 @@ describe CacheRecord::Store::Header do
           block_range, start_index = t.last
           context "when offset #{offset}, limit #{limit}" do
             it "should return block range #{block_range}, start_index #{start_index}" do
-              header = CacheRecord::Store::Header.new(build_header_data(test[:block_sizes]))
+              header = CachedRecord::Store::Header.new(build_header_data(test[:block_sizes]))
               blocks, start = header.block_keys_for_offset_limit(offset, limit)
               expect(blocks).to eq(block_range.to_a)
               expect(start).to eq(start_index)

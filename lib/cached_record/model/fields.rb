@@ -1,4 +1,4 @@
-class CacheRecord
+class CachedRecord
   module Model
     module Fields
       module ClassMethods
