@@ -66,13 +66,12 @@ describe CachedRecord::Store::Block do
 end
 
 def build_block_data(items, size: items.length, order:, key: nil)
-  items_with_keys = items.map {|i| [get_item_key(i),i] }
+  keys = items.map { |i| get_item_key(i) }
 
   [
     {
-      min_key: items_with_keys.first.first,
-      max_key: items_with_keys.last.first,
-      items: items_with_keys,
+      keys: keys,
+      values: items,
     },
     {
       order: order,

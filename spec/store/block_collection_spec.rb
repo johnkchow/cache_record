@@ -26,8 +26,8 @@ describe CachedRecord::Store::BlockCollection do
     end
 
     let(:header_data) do
-      blocks = block_data.map {|k,b| b.merge(key: k, count: b[:items].length)}
-      total_count = block_data.inject(0) {|c,(_,b)| c + b[:items].length }
+      blocks = block_data.map {|k,b| b.merge(key: k, count: b[:keys].length)}
+      total_count = block_data.inject(0) {|c,(_,b)| c + b[:keys].length }
       {
         total_count: total_count,
         blocks: blocks,
@@ -44,21 +44,24 @@ describe CachedRecord::Store::BlockCollection do
             last_key: 4,
             order: :asc,
             size: 20,
-            items: [[1,1],[2,2],[3,3],[4,4]],
+            keys: [1,2,3,4],
+            values: [1,2,3,4],
           },
           "block2" => {
             first_key: 5,
             last_key: 8,
             order: :asc,
             size: 20,
-            items: [[5,5],[6,6],[7,7],[8,8]],
+            keys: [5,6,7,8],
+            values: [5,6,7,8],
           },
           "block3" => {
             first_key: 9,
             last_key: 12,
             order: :asc,
             size: 20,
-            items: [[9,9],[10,10],[11,11],[12,12]],
+            keys: [9,10,11,12],
+            values: [9,10,11,12],
           },
         }
       end
@@ -86,21 +89,24 @@ describe CachedRecord::Store::BlockCollection do
             last_key: 9,
             order: :desc,
             size: 20,
-            items: [[12, 12], [11, 11], [10, 10], [9, 9]],
+            keys: [12, 11, 10, 9],
+            values: [12, 11, 10, 9],
           },
           "block2" => {
             first_key: 8,
             last_key: 5,
             order: :desc,
             size: 20,
-            items: [[8, 8], [7, 7], [6, 6], [5, 5]],
+            keys: [8, 7, 6, 5],
+            values: [8, 7, 6, 5],
           },
           "block1" => {
             first_key: 4,
             last_key: 1,
             order: :desc,
             size: 20,
-            items: [[4, 4], [3, 3], [2, 2], [1, 1]],
+            keys: [4, 3, 2, 1],
+            values: [4, 3, 2, 1],
           },
         }
       end

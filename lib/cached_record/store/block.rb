@@ -3,7 +3,7 @@ class CachedRecord
     class Block
       include CachedRecord::Model::Fields
 
-      field :first_key, :last_key, :size, :order
+      field :size, :order, :keys, :values
 
       attr_reader :key
 
@@ -12,26 +12,27 @@ class CachedRecord
         @key = key
         self.order ||= order
         self.size ||= size
+        self.keys ||= []
+        self.values ||= []
       end
 
       def count
-        attributes[:items].count
+        keys.length
       end
 
       def items
-        attributes[:items].map(&:last)
+        values
       end
 
       def insert(key, value)
         index = nil
-        attributes[:items].each_with_index do |(k, _v), i|
+        keys.each_with_index do |(k, _v), i|
 
           if order == :asc
             if i == 0 && key <= k
               index = i
               break
-            elsif next_item = attributes[:items][i + 1]
-              next_key = next_item.first
+            elsif next_key = keys[i + 1]
               if k <= key && key <= next_key
                 index = i + 1
                 break
@@ -44,8 +45,7 @@ class CachedRecord
             if i == 0 && key >= k
               index = i
               break
-            elsif next_item = attributes[:items][i + 1]
-              next_key = next_item.first
+            elsif next_key = keys[i + 1]
               if k >= key && key >= next_key
                 index = i + 1
                 break
@@ -56,7 +56,8 @@ class CachedRecord
           end
         end
 
-        attributes[:items].insert(index, [key, value])
+        keys.insert(index, key)
+        values.insert(index, value)
       end
 
       protected
