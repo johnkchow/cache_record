@@ -57,7 +57,7 @@ describe CachedRecord::Store::Block do
         expect(subject.items).to eq ([7,6,5,3,2,1])
       end
 
-      it "inserts into beginning correctly" do
+      it "inserts into end correctly" do
         subject.insert(-1, -1)
         expect(subject.items).to eq ([6,5,3,2,1,-1])
       end
@@ -69,14 +69,12 @@ def build_block_data(items, size: items.length, order:, key: nil)
   keys = items.map { |i| get_item_key(i) }
 
   [
+    key || SecureRandom.uuid,
     {
       keys: keys,
       values: items,
-    },
-    {
       order: order,
-      size: size,
-      key: key || SecureRandom.uuid
+      size: size
     }
   ]
 end

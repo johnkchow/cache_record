@@ -7,11 +7,9 @@ class CachedRecord
 
       attr_reader :key
 
-      def initialize(data, key:, order:, size:)
+      def initialize(key, data)
         super(data)
         @key = key
-        self.order ||= order
-        self.size ||= size
         self.keys ||= []
         self.values ||= []
       end
@@ -24,10 +22,53 @@ class CachedRecord
         values
       end
 
+      def min_key
+        keys.first
+      end
+
+      def max_key
+        keys.last
+      end
+
+      def meta_hash
+        {
+          key: key,
+          size: size,
+          order: order,
+          min_key: keys.first,
+          max_key: keys.last,
+          count: keys.length
+        }
+      end
+
+      def split(min_block_key, max_block_key)
+        split_index = (keys.length / 2).to_i - 1
+        first_keys = keys[0..split_index]
+        first_values = values[0..split_index]
+        last_keys = keys[(split_index + 1)..-1]
+        last_values = values[(split_index + 1)..-1]
+
+        [
+          self.class.new(
+            min_block_key,
+            keys: first_keys,
+            values: first_values,
+            order: order,
+            size: size,
+          ),
+          self.class.new(
+            max_block_key,
+            keys: last_keys,
+            values: last_values,
+            order: order,
+            size: size,
+          )
+        ]
+      end
+
       def insert(key, value)
         index = nil
         keys.each_with_index do |(k, _v), i|
-
           if order == :asc
             if i == 0 && key <= k
               index = i
@@ -37,9 +78,6 @@ class CachedRecord
                 index = i + 1
                 break
               end
-            else #we're at the end
-              # adds to end of array
-              index = -1
             end
           else
             if i == 0 && key >= k
@@ -50,14 +88,25 @@ class CachedRecord
                 index = i + 1
                 break
               end
-            else
-              index = -1
             end
           end
         end
 
+        index ||= -1
+
         keys.insert(index, key)
         values.insert(index, value)
+      end
+
+      def key_within_range?(key)
+        case order
+        when :asc
+          min_key <= key && key <= max_key
+        when :desc
+          max_key <= key && key <= min_key
+        else
+          raise ArgumentError, "Unknown order #{order}"
+        end
       end
 
       protected

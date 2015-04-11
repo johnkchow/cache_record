@@ -4,23 +4,128 @@ class CachedRecord
       class MetaBlock
         include CachedRecord::Model::Fields
 
-        field :key, :first_key, :last_key, :count, :size
+        field :key, :min_key, :max_key, :count, :size
+
+        attr_reader :order
+
+        def initialize(data, order)
+          super(data)
+          @order = order
+          raise ArgumentError, "Unknown order #{order}" unless [:desc, :asc].include?(order)
+        end
+
+        def full?
+          count == size
+        end
+
+        def include_key?(key)
+          case order
+          when :asc
+            (min_key <= key && key <= max_key)
+          when :desc
+            (min_key >= key && key >= max_key)
+          end
+        end
+
+        def can_insert_or_split?(key)
+          # NOTE: the !full? conditional is dependent that no key block ranges overlap
+          # and the only block with available slots is the only block with available
+          # slots. Otherwise, we may run into key overlapping issues, which will mess
+          # with ordering/fetching.
+          include_key?(key) || !full?
+        end
+
+        def can_insert_before?(key)
+          return false if full?
+
+          case order
+          when :asc
+            key < min_key
+          when :desc
+            key > min_key
+          end
+        end
+
+        def can_insert_between?(key, other_block)
+          return false unless self.full? && other_block.full?
+
+          block1, block2 = sort_blocks(self, other_block)
+
+          case order
+          when :asc
+            block1.max_key < key && key < block2.min_key
+          when :desc
+            block1.max_key > key && key > block2.min_key
+          end
+        end
+
+        def should_resize?
+          count >= size
+        end
+
+        protected
+
+        def sort_blocks(block1, block2)
+          blocks = if block1.max_key <= block2.max_key && block1.min_key <= block2.min_key
+                     [block1, block2]
+                   else
+                     [block2, block1]
+                   end
+          blocks.reverse! if order == :desc
+          blocks
+        end
       end
 
-      attr_reader :total_count
+      attr_reader :total_count, :meta_blocks, :key, :order
 
       def initialize(data)
-        @order = data.fetch(:order)
-        @meta_blocks_tree = build_meta_blocks_tree(data[:blocks] || [], @order)
+        @key = data[:key]
+        @order = data.fetch(:order).to_sym
+        @meta_blocks = (data[:blocks] || []).map { |b| MetaBlock.new(b, order) }
         @total_count = data[:total_count] || 0
       end
 
       def to_hash
         {
-          blocks: @meta_blocks_tree.map {|k,v| v.to_hash },
+          blocks: @meta_blocks.map {|b| b.to_hash },
           total_count: @total_count,
           order: @order,
         }
+      end
+
+      def add_block(data)
+        new_block = MetaBlock.new(data, order)
+
+        # TODO do binary search instead of linear
+        insert_before = nil
+        case order
+        when :asc
+          meta_blocks.each_with_index do |block, i|
+            if block.min_key > new_block.max_key
+              insert_before = i
+              break
+            end
+          end
+        when :desc
+          meta_blocks.each_with_index do |block, i|
+            if new_block.max_key > block.min_key
+              insert_before = i
+              break
+            end
+          end
+        end
+
+        # insert at the end
+        insert_before ||= -1
+        meta_blocks.insert(insert_before, new_block)
+      end
+
+      def empty_blocks?
+        @meta_blocks.empty?
+      end
+
+      def block_count
+        @meta_blocks.count
       end
 
       def block_keys_for_offset_limit(offset, limit)
@@ -28,7 +133,6 @@ class CachedRecord
 
         offset_left = offset
         start_block_index = 0
-        meta_blocks = @meta_blocks_tree.values
 
         while (block = meta_blocks[start_block_index]) && (offset_left - block.count) >= 0
           offset_left -= block.count
@@ -53,24 +157,29 @@ class CachedRecord
         [block_keys, first_block_offset]
       end
 
+      # NOTE: Possible critical section
+      def replace(original_block_key, new_blocks)
+        copy_blocks = Array.new(@meta_blocks.count - 1 + new_blocks.count)
+        copy_index = 0
+        @meta_blocks.each do |meta_block|
+          if meta_block.key == original_block_key
+            new_blocks.each_with_index do |block, i|
+              copy_blocks[copy_index + i] = build_meta_block(block)
+            end
+            copy_index += new_blocks.count - 1
+          else
+            copy_blocks[copy_index] = meta_block
+          end
+          copy_index += 1
+        end
+
+        @meta_blocks = copy_blocks
+      end
+
       protected
 
-      def build_meta_blocks_tree(blocks, order)
-        traversal = case order.to_sym
-                    when :asc
-                      :inorder
-                    when :desc
-                      :postorder
-                    else
-                      raise ArgumentError
-                    end
-
-        tree = RedBlackTree.new(nil, traversal)
-        blocks.each do |b|
-          meta_block = MetaBlock.new(b)
-          tree[meta_block.key] = meta_block
-        end
-        tree
+      def build_meta_block(block)
+        MetaBlock.new(block.meta_hash, order)
       end
     end
   end

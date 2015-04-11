@@ -36,6 +36,7 @@ class CachedRecord
       attr_reader :attributes
 
       def initialize(attributes)
+        raise ArgumentError, "Attributes must be a hash" unless attributes
         @attributes = attributes
       end
 
