@@ -2,8 +2,9 @@ class CachedRecord
   class ManagedCollection
     attr_reader :store
 
-    def initialize(store:)
+    def initialize(store:, mapper:)
       @store = store
+      @mapper = mapper
     end
 
     def values(offset:, limit:)
@@ -22,6 +23,8 @@ class CachedRecord
       #     run the mapper to build up a model
       #     cache the built up model into hash (id => block, model)
       # return the values
+      items = store.items(offset: offset, limit: limit)
+      items.map { |i| mapper.map_raw_data(i) }
     end
 
     def update_model(model)
@@ -35,9 +38,22 @@ class CachedRecord
       # persist the block
       #   serialize all block data
       #   write to key
+
     end
 
-    def add(id, value, type = nil)
+    def update(id, object, type = nil)
+      managed_item = store.find { |d| d[:id] == id}
+
+      return unless managed_item
+
+      model = mapper.map_raw_data(managed_item.value)
+      mapper.map(model, object)
+      managed_item.value = model.to_hash
+      managed_item.save!
+      model
+    end
+
+    def add(id, object, type = nil)
       # check that the type is valid
       #   if the mapping has multiple types, it should be inthat
       #   if the mapping has single type, it should just be nil
@@ -47,6 +63,8 @@ class CachedRecord
       # tell the store to update the store with attributes
       #   if the item already exists as duplicate in block, explode
       # tell the store to persist
+
+      #model = mapper.
     end
   end
 end

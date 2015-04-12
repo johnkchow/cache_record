@@ -97,6 +97,7 @@ class CachedRecord
 
       # Takes a block that must take in a value and return a boolean value
       def remove
+        raise NotImplementedError, "todo"
         # loop through all the meta blocks
         #   fetch the block
         #   loop through all items in the block
