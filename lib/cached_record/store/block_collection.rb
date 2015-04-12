@@ -67,12 +67,12 @@ class CachedRecord
 
         if header.empty_blocks?
           block = create_new_block(key, value)
-          save_block!(block)
+          persist_block!(block)
         else
           meta_blocks = header.meta_blocks
           if meta_blocks.first.can_insert_before?(key)
             block = create_new_block(key, value)
-            save_block!(block)
+            persist_block!(block)
           else
             # NOTE: do binary search instead of linear
             meta_blocks.each_with_index do |meta_block, i|
@@ -86,13 +86,13 @@ class CachedRecord
                 break
               elsif meta_block.can_insert_between?(key, next_meta_block)
                 block = create_new_block(key, value)
-                save_block!(block)
+                persist_block!(block)
                 break
               end
             end
           end
         end
-        save_header!
+        persist_header!
       end
 
       # Takes a block that must take in a value and return a boolean value
@@ -109,14 +109,20 @@ class CachedRecord
         # rebalance keys/items if necessary with surrounding blocks
       end
 
+      def save_block!(block)
+        persist_block!(block)
+        persist_header!
+      end
+
       protected
 
-      def save_header!
+      def persist_header!
         adapter.write(header.key, header.to_hash)
       end
 
-      def save_block!(blocks)
+      def persist_block!(blocks)
         Array(blocks).each do |block|
+          update_meta_block(block)
           adapter.write(block.key, block.to_hash)
         end
       end
@@ -128,6 +134,10 @@ class CachedRecord
         block
       end
 
+      def update_meta_block(block)
+        header.update_block(block)
+      end
+
       def insert_within_block!(meta_block, key, value)
         block = get_block(meta_block.key)
         if meta_block.should_resize?
@@ -137,14 +147,14 @@ class CachedRecord
 
           header.replace(meta_block.key, blocks)
 
-          save_block!(blocks)
+          persist_block!(blocks)
           # TODO: don't delete until we save the header in the future
           @blocks.delete(block.key)
         else
           block.insert(key, value)
-          meta_block.count += 1
+          update_meta_block(block)
 
-          save_block!(block)
+          persist_block!(block)
         end
       end
 

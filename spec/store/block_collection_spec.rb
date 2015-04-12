@@ -207,6 +207,34 @@ RSpec.describe CachedRecord::Store::BlockCollection do
             block2 = fetch_blocks("block2").first
             expect(block2.items).to eq ([8,9,10,12])
           end
+
+          it "should increment the meta block count" do
+            meta_block = nil
+            expect { subject.insert(10, 10) }.to change {
+              header = fetch_header(header_key)
+              meta_block = header.meta_blocks.find {|b| b.key == "block2" }
+              meta_block.count
+            }.from(3).to(4)
+
+            expect(meta_block.min_key).to eq(8)
+            expect(meta_block.max_key).to eq(12)
+          end
+
+          it "shouldn't change the min_key" do
+            expect { subject.insert(10, 10) }.to_not change {
+              header = fetch_header(header_key)
+              meta_block = header.meta_blocks.find {|b| b.key == "block2" }
+              meta_block.min_key
+            }
+          end
+
+          it "shouldn't change the max_key" do
+            expect { subject.insert(10, 10) }.to_not change {
+              header = fetch_header(header_key)
+              meta_block = header.meta_blocks.find {|b| b.key == "block2" }
+              meta_block.max_key
+            }
+          end
         end
 
         context "when inserting key/value into end of middle block w/ available slots" do
@@ -217,6 +245,51 @@ RSpec.describe CachedRecord::Store::BlockCollection do
             subject.insert(13,13)
             block_values = block_values(header_key)
             expect(block_values).to eq([[1,2,3,4],[8,9,12,13],[16]])
+          end
+
+          it "shouldn't change the min_key" do
+            expect { subject.insert(13, 13) }.to_not change {
+              header = fetch_header(header_key)
+              meta_block = header.meta_blocks.find {|b| b.key == "block2" }
+              meta_block.min_key
+            }
+          end
+
+          it "should update the meta block's max key" do
+            meta_block = nil
+            expect { subject.insert(13, 13) }.to change {
+              header = fetch_header(header_key)
+              meta_block = header.meta_blocks.find {|b| b.key == "block2" }
+              meta_block.max_key
+            }.from(12).to(13)
+          end
+        end
+
+        context "when inserting key/value into beginning of block w/ available slots" do
+          it "shouldn't create anymore blocks" do
+            expect { subject.insert(7, 7) }.to_not change { fetch_header(header_key).block_count }
+          end
+          it "should persist block with correct order" do
+            subject.insert(7,7)
+            block_values = block_values(header_key)
+            expect(block_values).to eq([[1,2,3,4],[7,8,9,12],[16]])
+          end
+
+          it "should update the meta block's min key" do
+            meta_block = nil
+            expect { subject.insert(7, 7) }.to change {
+              header = fetch_header(header_key)
+              meta_block = header.meta_blocks.find {|b| b.key == "block2" }
+              meta_block.min_key
+            }.from(8).to(7)
+          end
+
+          it "shouldn't change the max_key" do
+            expect { subject.insert(7, 7) }.to_not change {
+              header = fetch_header(header_key)
+              meta_block = header.meta_blocks.find {|b| b.key == "block2" }
+              meta_block.max_key
+            }
           end
         end
 

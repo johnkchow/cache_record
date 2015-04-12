@@ -128,6 +128,14 @@ class CachedRecord
         @meta_blocks.count
       end
 
+      def update_block(block)
+        meta_block = meta_blocks.find { |b| b.key == block.key }
+        meta_block.min_key = block.min_key
+        meta_block.max_key = block.max_key
+        meta_block.count = block.count
+        meta_block.size = block.size
+      end
+
       def block_keys_for_offset_limit(offset, limit)
         return nil if offset > total_count
 
