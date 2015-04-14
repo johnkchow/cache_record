@@ -67,12 +67,12 @@ class CachedRecord
 
         if header.empty_blocks?
           block = create_new_block(key, value)
-          persist_block!(block)
+          update_meta_block_and_persist!(block)
         else
           meta_blocks = header.meta_blocks
           if meta_blocks.first.can_insert_before?(key)
             block = create_new_block(key, value)
-            persist_block!(block)
+            update_meta_block_and_persist!(block)
           else
             # NOTE: do binary search instead of linear
             meta_blocks.each_with_index do |meta_block, i|
@@ -86,13 +86,36 @@ class CachedRecord
                 break
               elsif meta_block.can_insert_between?(key, next_meta_block)
                 block = create_new_block(key, value)
-                persist_block!(block)
+                update_meta_block_and_persist!(block)
                 break
               end
             end
           end
         end
         persist_header!
+      end
+
+      def find
+        found_block = nil
+        found_index = nil
+        header.meta_blocks.each do |meta_block|
+          block = get_block(meta_block.key)
+          block.values.each_with_index do |item, i|
+            if yield(item)
+              found_block = block
+              found_index = i
+              break
+            end
+          end
+        end
+
+        if found_block
+          CachedRecord::Store::ManagedItem.new(
+            store: self,
+            block: found_block,
+            index: found_index,
+          )
+        end
       end
 
       # Takes a block that must take in a value and return a boolean value
@@ -110,7 +133,7 @@ class CachedRecord
       end
 
       def save_block!(block)
-        persist_block!(block)
+        update_meta_block_and_persist!(block)
         persist_header!
       end
 
@@ -120,7 +143,7 @@ class CachedRecord
         adapter.write(header.key, header.to_hash)
       end
 
-      def persist_block!(blocks)
+      def update_meta_block_and_persist!(blocks)
         Array(blocks).each do |block|
           update_meta_block(block)
           adapter.write(block.key, block.to_hash)
@@ -147,14 +170,14 @@ class CachedRecord
 
           header.replace(meta_block.key, blocks)
 
-          persist_block!(blocks)
+          update_meta_block_and_persist!(blocks)
           # TODO: don't delete until we save the header in the future
           @blocks.delete(block.key)
         else
           block.insert(key, value)
           update_meta_block(block)
 
-          persist_block!(block)
+          update_meta_block_and_persist!(block)
         end
       end
 

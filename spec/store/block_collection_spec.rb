@@ -49,7 +49,7 @@ RSpec.describe CachedRecord::Store::BlockCollection do
     }
   end
 
-  shared_context "asc order" do
+  shared_context "simple asc order" do
     let(:order) { :asc }
     let(:block_data) do
       {
@@ -81,7 +81,7 @@ RSpec.describe CachedRecord::Store::BlockCollection do
     end
   end
 
-  shared_context "desc order" do
+  shared_context "simple desc order" do
     let(:order) { :desc }
     let(:block_data) do
       {
@@ -113,10 +113,76 @@ RSpec.describe CachedRecord::Store::BlockCollection do
     end
   end
 
+  shared_context "complex asc order" do
+    let(:order) { :asc }
+
+    let(:block_data) do
+      {
+        "block1" => {
+          min_key: 1,
+          max_key: 4,
+          size: 4,
+          order: :asc,
+          keys: [1,2,3,4],
+          values: [1,2,3,4],
+        },
+        "block2" => {
+          min_key: 8,
+          max_key: 12,
+          size: 4,
+          order: :asc,
+          keys: [8,9,12],
+          values: [8,9,12],
+        },
+        "block3" => {
+          min_key: 16,
+          max_key: 16,
+          size: 4,
+          order: :asc,
+          keys: [16],
+          values: [16],
+        }
+      }
+    end
+  end
+
+  shared_context "complex desc order" do
+    let(:order) { :desc }
+
+    let(:block_data) do
+      {
+        "block3" => {
+          min_key: 16,
+          max_key: 16,
+          size: 4,
+          order: :desc,
+          keys: [16, 16, 16, 16],
+          values: [16, 16, 16, 16],
+        },
+        "block2" => {
+          min_key: 12,
+          max_key: 8,
+          size: 4,
+          order: :desc,
+          keys: [12,9,8],
+          values: [12,9,8],
+        },
+        "block1" => {
+          min_key: 4,
+          max_key: 4,
+          size: 4,
+          order: :desc,
+          keys: [4],
+          values: [4],
+        },
+      }
+    end
+  end
+
   describe "#items" do
 
     context "when order is asc" do
-      include_context "asc order"
+      include_context "simple asc order"
 
       context "offset 2, limit 4" do
         it "should return [3,4,5,6]" do
@@ -132,7 +198,7 @@ RSpec.describe CachedRecord::Store::BlockCollection do
     end
 
     context "when order is desc" do
-      include_context "desc order"
+      include_context "simple desc order"
 
       context "offset 2, limit 4" do
         it "should return [3,4,5,6]" do
@@ -169,34 +235,7 @@ RSpec.describe CachedRecord::Store::BlockCollection do
       end
 
       context "non empty collection" do
-        let(:block_data) do
-          {
-            "block1" => {
-              min_key: 1,
-              max_key: 4,
-              size: 4,
-              order: :asc,
-              keys: [1,2,3,4],
-              values: [1,2,3,4],
-            },
-            "block2" => {
-              min_key: 8,
-              max_key: 12,
-              size: 4,
-              order: :asc,
-              keys: [8,9,12],
-              values: [8,9,12],
-            },
-            "block3" => {
-              min_key: 16,
-              max_key: 16,
-              size: 4,
-              order: :asc,
-              keys: [16],
-              values: [16],
-            }
-          }
-        end
+        include_context "complex asc order"
 
         context "when inserting key/value into middle block with available slots" do
           it "shouldn't create anymore blocks" do
@@ -343,34 +382,7 @@ RSpec.describe CachedRecord::Store::BlockCollection do
       end
 
       context "non empty collection" do
-        let(:block_data) do
-          {
-            "block3" => {
-              min_key: 16,
-              max_key: 16,
-              size: 4,
-              order: :desc,
-              keys: [16, 16, 16, 16],
-              values: [16, 16, 16, 16],
-            },
-            "block2" => {
-              min_key: 12,
-              max_key: 8,
-              size: 4,
-              order: :desc,
-              keys: [12,9,8],
-              values: [12,9,8],
-            },
-            "block1" => {
-              min_key: 4,
-              max_key: 4,
-              size: 4,
-              order: :desc,
-              keys: [4],
-              values: [4],
-            },
-          }
-        end
+        include_context "complex desc order"
 
         context "when inserting key/value into middle block with available slots" do
           it "shouldn't create anymore blocks" do
@@ -431,6 +443,44 @@ RSpec.describe CachedRecord::Store::BlockCollection do
             block_values = block_values(header_key)
             expect(block_values).to eq([[16,16,16,16],[15],[12,9,8,7],[4]])
           end
+        end
+      end
+    end
+  end
+
+  describe "#find" do
+    context "simple asc order" do
+      include_context "simple asc order"
+
+      context "find block actually finds an item" do
+        it "should return managed object" do
+          managed_object = subject.find { |v| v == 12 }
+          expect(managed_object.key).to eq(12)
+          expect(managed_object.value).to eq(12)
+        end
+      end
+
+      context "find block doesn't find an item" do
+        it "should return nil" do
+          expect(subject.find {|v| v == -1 }).to be_nil
+        end
+      end
+    end
+
+    context "simple desc order" do
+      include_context "simple desc order"
+
+      context "find block actually finds an item" do
+        it "should return managed object" do
+          managed_object = subject.find { |v| v == 5 }
+          expect(managed_object.key).to eq(5)
+          expect(managed_object.value).to eq(5)
+        end
+      end
+
+      context "find block doesn't find an item" do
+        it "should return nil" do
+          expect(subject.find {|v| v == -1 }).to be_nil
         end
       end
     end

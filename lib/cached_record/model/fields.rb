@@ -35,8 +35,13 @@ class CachedRecord
 
       attr_reader :attributes
 
-      def initialize(attributes)
+      def initialize(attributes = nil)
         raise ArgumentError, "Attributes must be a hash" unless attributes
+
+        from_hash(attributes || {})
+      end
+
+      def from_hash(attributes)
         @attributes = attributes
       end
 
