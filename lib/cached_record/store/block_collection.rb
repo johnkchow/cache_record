@@ -3,13 +3,15 @@ class CachedRecord
     class BlockCollection
       include Util::Assertion
 
-      attr_reader :header, :adapter, :order, :block_size
+      attr_reader :header, :store_adapter, :order, :block_size, :data_adapter
 
       def initialize(header_key,
-                     adapter:,
+                     store_adapter:,
+                     data_adapter:,
                      order:,
                      block_size: CachedRecord.config.block_size)
-        @adapter = adapter
+        @store_adapter = store_adapter
+        @data_adapter = data_adapter
         @header = get_header(header_key)
         @block_size = block_size
         @order = order.to_sym
@@ -140,13 +142,13 @@ class CachedRecord
       protected
 
       def persist_header!
-        adapter.write(header.key, header.to_hash)
+        store_adapter.write(header.key, header.to_hash)
       end
 
       def update_meta_block_and_persist!(blocks)
         Array(blocks).each do |block|
           update_meta_block(block)
-          adapter.write(block.key, block.to_hash)
+          store_adapter.write(block.key, block.to_hash)
         end
       end
 
@@ -207,8 +209,28 @@ class CachedRecord
         end
 
         if unfound_keys.any?
-          raw_blocks = adapter.read_multi(*unfound_keys)
+          raw_blocks = store_adapter.read_multi(*unfound_keys)
 
+          if raw_blocks.any? {|k,v| v.nil? }
+            # clear the blocks
+            @blocks = {}
+            # fetch all the keys
+            # update the header's meta blocks
+            # fetch all the data that's needed for the blocks
+            # reconstitute the blocks
+            # persist the blocks
+            # and then return the blocks
+
+            unfound_blocks = raw_blocks.inject([]) do |arr, (k, v)|
+              arr << k if v.nil?
+              arr
+            end
+
+            unfound_blocks.each do |block_key|
+              ids = header.get_ids_for_block_key(block_key)
+              data = data_adapter.fetch_batch_for_type(ids, nil, nil)
+            end
+          end
           raw_blocks.each do |key, raw_block|
             block = build_block(key, raw_block)
             @blocks[key] = block
@@ -229,7 +251,7 @@ class CachedRecord
       end
 
       def get_header(key)
-        header_data = adapter.read(key) || get_header_attributes
+        header_data = store_adapter.read(key) || get_header_attributes
         Header.new(header_data.merge(key: key))
       end
 

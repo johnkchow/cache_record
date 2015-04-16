@@ -22,10 +22,26 @@ class TestAdapter
   end
 end
 
+class TestDataAdapter
+  def initialize(keys, values)
+    @keys = keys
+    @values = values
+  end
+
+  def fetch_keys(_user_id, _options)
+    @keys
+  end
+
+  def fetch_batch_for_type(ids, _type, _options)
+    ids.map { |k| @values[@keys.index(k)] }
+  end
+end
+
 RSpec.describe CachedRecord::Store::BlockCollection do
   subject do
     options = {
-      adapter: mock_adapter,
+      data_adapter: mock_data_adapter,
+      store_adapter: mock_store_adapter,
       order: order,
       block_size: 100
     }
@@ -35,13 +51,16 @@ RSpec.describe CachedRecord::Store::BlockCollection do
   let(:header_key) { "header" }
   let(:block_data) { {} }
 
-  let(:mock_adapter) do
-    TestAdapter.new(block_data.merge(header_key => header_data))
+  let(:mock_store_adapter) do
+    filtered_block_data = block_data.select { |k,v| v[:keys] }
+    TestAdapter.new(filtered_block_data.merge(header_key => header_data))
   end
 
+  let(:mock_data_adapter) { TestDataAdapter.new(keys, values) }
+
   let(:header_data) do
-    blocks = block_data.map {|k,b| b.merge(key: k, count: b[:keys].length)}
-    total_count = block_data.inject(0) {|c,(_,b)| c + b[:keys].length }
+    blocks = block_data.map {|k,b| b.merge(key: k, count: b[:count] || b[:keys].length)}
+    total_count = block_data.inject(0) {|c,(_,b)| c + (b[:count] || b[:keys].length) }
     {
       total_count: total_count,
       blocks: blocks,
@@ -51,6 +70,8 @@ RSpec.describe CachedRecord::Store::BlockCollection do
 
   shared_context "simple asc order" do
     let(:order) { :asc }
+    let(:keys) { [1,2,3,4,5,6,7,8,9,10,11,12] }
+    let(:values) { [1,2,3,4,5,6,7,8,9,10,11,12] }
     let(:block_data) do
       {
         "block1" => {
@@ -83,6 +104,8 @@ RSpec.describe CachedRecord::Store::BlockCollection do
 
   shared_context "simple desc order" do
     let(:order) { :desc }
+    let(:keys) { [12,11,10,9,8,7,6,5,4,3,2,1] }
+    let(:values) { [12,11,10,9,8,7,6,5,4,3,2,1] }
     let(:block_data) do
       {
         "block1" => {
@@ -115,6 +138,8 @@ RSpec.describe CachedRecord::Store::BlockCollection do
 
   shared_context "complex asc order" do
     let(:order) { :asc }
+    let(:keys) { [1,2,3,4,8,9,12,16] }
+    let(:values) { [1,2,3,4,8,9,12,16] }
 
     let(:block_data) do
       {
@@ -148,6 +173,8 @@ RSpec.describe CachedRecord::Store::BlockCollection do
 
   shared_context "complex desc order" do
     let(:order) { :desc }
+    let(:keys) { [16,16,16,16,12,9,8,4] }
+    let(:values) { [16,16,16,16,12,9,8,4] }
 
     let(:block_data) do
       {
@@ -175,6 +202,40 @@ RSpec.describe CachedRecord::Store::BlockCollection do
           keys: [4],
           values: [4],
         },
+      }
+    end
+  end
+
+  shared_context "asc order with missing block" do
+    let(:order) { :asc }
+    let(:keys) { [1,2,3,4,8,9,12,16] }
+    let(:values) { [1,2,3,4,8,9,12,16] }
+
+    let(:block_data) do
+      {
+        "block1" => {
+          min_key: 1,
+          max_key: 4,
+          size: 4,
+          order: :asc,
+          keys: [1,2,3,4],
+          values: [1,2,3,4],
+        },
+        "block2" => {
+          min_key: 8,
+          max_key: 12,
+          size: 4,
+          order: :asc,
+          count: 3,
+        },
+        "block3" => {
+          min_key: 16,
+          max_key: 16,
+          size: 4,
+          order: :asc,
+          keys: [16],
+          values: [16],
+        }
       }
     end
   end
@@ -210,6 +271,14 @@ RSpec.describe CachedRecord::Store::BlockCollection do
         it "should return [2,3,4] " do
           expect(subject.items(offset: 1, limit: 3)).to eq([11,10,9])
         end
+      end
+    end
+
+    context "when order is asc and a block is missing" do
+      include_context "asc order with missing block"
+      it "should fetch the data from the adapter and return the items" do
+        debugger
+        expect(subject.items(offset: 4, limit: 4)).to eq([8,9,12,16])
       end
     end
   end
@@ -487,18 +556,18 @@ RSpec.describe CachedRecord::Store::BlockCollection do
   end
 end
 
-def block_values(header_key)
-  fetch_blocks_from_header(fetch_header(header_key)).map { |b| b.values }
+def block_values(key = header_key)
+  fetch_blocks_from_header(fetch_header(key)).map { |b| b.values }
 end
 
-def fetch_header(key)
-  CachedRecord::Store::Header.new(mock_adapter.read(key))
+def fetch_header(key = header_key)
+  CachedRecord::Store::Header.new(mock_store_adapter.read(key))
 end
 
 def fetch_blocks_from_header(header)
-  header.meta_blocks.map(&:key).map {|k| CachedRecord::Store::Block.new(k, mock_adapter.read(k))}
+  header.meta_blocks.map(&:key).map {|k| CachedRecord::Store::Block.new(k, mock_store_adapter.read(k))}
 end
 
 def fetch_blocks(*keys)
-  keys.map {|k| CachedRecord::Store::Block.new(k, mock_adapter.read(k))}
+  keys.map {|k| CachedRecord::Store::Block.new(k, mock_store_adapter.read(k))}
 end

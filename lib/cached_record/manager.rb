@@ -8,6 +8,14 @@ class CachedRecord
           @mapper
         end
       end
+
+      def storage(*args)
+        #todo
+      end
+
+      def adapter(*args)
+        #todo
+      end
     end
 
     def initialize(store: nil, mapper: nil, data_adapter: nil)
