@@ -22,13 +22,13 @@ class TestAdapter
   end
 end
 
-class TestDataAdapter
+class TestDataFetcher
   def initialize(keys, values)
     @keys = keys
     @values = values
   end
 
-  def fetch_keys(_user_id, _options)
+  def key_values_for_ids(ids)
     @keys
   end
 
@@ -40,7 +40,7 @@ end
 RSpec.describe CachedRecord::Store::BlockCollection do
   subject do
     options = {
-      data_adapter: mock_data_adapter,
+      data_fetcher: mock_data_fetcher,
       store_adapter: mock_store_adapter,
       order: order,
       block_size: 100
@@ -59,7 +59,8 @@ RSpec.describe CachedRecord::Store::BlockCollection do
   let(:mock_data_adapter) { TestDataAdapter.new(keys, values) }
 
   let(:header_data) do
-    blocks = block_data.map {|k,b| b.merge(key: k, count: b[:count] || b[:keys].length)}
+    blocks = block_data.map {|k,b| build_meta_block(block_data) }
+
     total_count = block_data.inject(0) {|c,(_,b)| c + (b[:count] || b[:keys].length) }
     {
       total_count: total_count,
@@ -570,4 +571,9 @@ end
 
 def fetch_blocks(*keys)
   keys.map {|k| CachedRecord::Store::Block.new(k, mock_store_adapter.read(k))}
+end
+
+def build_meta_block(block_hash)
+  keys_data = block_hash[:keys].map {|k| {id: k, key: k} }
+  block_hash.merge(keys_data: keys_data)
 end

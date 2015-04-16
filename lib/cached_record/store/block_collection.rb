@@ -3,15 +3,15 @@ class CachedRecord
     class BlockCollection
       include Util::Assertion
 
-      attr_reader :header, :store_adapter, :order, :block_size, :data_adapter
+      attr_reader :header, :store_adapter, :order, :block_size, :data_fetcher
 
       def initialize(header_key,
                      store_adapter:,
-                     data_adapter:,
+                     data_fetcher:,
                      order:,
                      block_size: CachedRecord.config.block_size)
         @store_adapter = store_adapter
-        @data_adapter = data_adapter
+        @data_fetcher = data_fetcher
         @header = get_header(header_key)
         @block_size = block_size
         @order = order.to_sym
@@ -221,20 +221,27 @@ class CachedRecord
             # persist the blocks
             # and then return the blocks
 
-            unfound_blocks = raw_blocks.inject([]) do |arr, (k, v)|
+            unfound_block_keys = raw_blocks.inject([]) do |arr, (k, v)|
               arr << k if v.nil?
               arr
             end
 
-            unfound_blocks.each do |block_key|
-              ids = header.get_ids_for_block_key(block_key)
-              data = data_adapter.fetch_batch_for_type(ids, nil, nil)
+            unfound_block_keys.each do |key|
+              ids_types = header.get_id_types_for_block_key(key)
+              keys, values = data_fetcher.key_values_for_id_types(id_types)
+
+              block = build_block(block_key, keys: keys, values: values)
+
+              @blocks[key] = block
+              ordered_blocks[keys_to_index[key]] = block
             end
-          end
-          raw_blocks.each do |key, raw_block|
-            block = build_block(key, raw_block)
-            @blocks[key] = block
-            ordered_blocks[keys_to_index[key]] = block
+          else
+            raw_blocks.each do |key, raw_block|
+              block = build_block(key, raw_block)
+
+              @blocks[key] = block
+              ordered_blocks[keys_to_index[key]] = block
+            end
           end
         end
         ordered_blocks

@@ -79,10 +79,13 @@ RSpec.describe CachedRecord::Store::Header::MetaBlock do
           subject do
             data =  {
               key: "subject",
-              min_key: 15,
-              max_key: 10,
               size: 4,
-              count: 4,
+              keys_data: [
+                {key: 15, id: 15},
+                {key: 14, id: 14},
+                {key: 13, id: 13},
+                {key: 10, id: 10},
+              ]
             }
             described_class.new(data, :desc)
           end
@@ -94,6 +97,12 @@ RSpec.describe CachedRecord::Store::Header::MetaBlock do
               max_key: 0,
               size: 4,
               count: 4,
+              keys_data: [
+                {key: 3, id: 3},
+                {key: 2, id: 2},
+                {key: 1, id: 1},
+                {key: 0, id: 0},
+              ]
             }
             described_class.new(data, :desc)
           end
@@ -111,19 +120,19 @@ end
 
 def build_header_data(block_sizes)
   blocks = []
+  counter = 0
   block_sizes.each_with_index do |count, index|
+    keys_data = (counter..(counter + count - 1)).map { |i| {key: i, id: i } }
     blocks << {
       key: index,
-      min_key: 1,
-      max_key: 2,
-      count: count,
-      size: 1000
+      size: 1000,
+      keys_data: keys_data,
     }
+    counter += 1
   end
   {
     sort_key: 'id',
     order: :asc,
     blocks: blocks,
-    total_count: block_sizes.inject(&:+)
   }
 end

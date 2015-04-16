@@ -4,7 +4,7 @@ class CachedRecord
       class MetaBlock
         include CachedRecord::Model::Fields
 
-        field :key, :min_key, :max_key, :count, :size
+        field :key, :size, :keys_data
 
         attr_reader :order
 
@@ -25,6 +25,22 @@ class CachedRecord
           when :desc
             (min_key >= key && key >= max_key)
           end
+        end
+
+        def min_key
+          if data = keys_data.first
+            data[:key]
+          end
+        end
+
+        def max_key
+          if data = keys_data.last
+            data[:key]
+          end
+        end
+
+        def count
+          keys_data.length
         end
 
         def can_insert_or_split?(key)
@@ -82,15 +98,17 @@ class CachedRecord
         @key = data[:key]
         @order = data.fetch(:order).to_sym
         @meta_blocks = (data[:blocks] || []).map { |b| MetaBlock.new(b, order) }
-        @total_count = data[:total_count] || 0
       end
 
       def to_hash
         {
           blocks: @meta_blocks.map {|b| b.to_hash },
-          total_count: @total_count,
           order: @order,
         }
+      end
+
+      def total_count
+        @meta_blocks.inject(0) { |sum, block| sum + block.count }
       end
 
       def add_block(data)
