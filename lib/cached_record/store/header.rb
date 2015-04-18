@@ -1,103 +1,20 @@
 class CachedRecord
   class Store
     class Header
-      class MetaBlock
-        include CachedRecord::Model::Fields
-
-        field :key, :size, :keys_data
-
-        attr_reader :order
-
-        def initialize(data, order)
-          super(data)
-          @order = order
-          raise ArgumentError, "Unknown order #{order}" unless [:desc, :asc].include?(order)
-        end
-
-        def full?
-          count == size
-        end
-
-        def include_key?(key)
-          case order
-          when :asc
-            (min_key <= key && key <= max_key)
-          when :desc
-            (min_key >= key && key >= max_key)
-          end
-        end
-
-        def min_key
-          if data = keys_data.first
-            data[:key]
-          end
-        end
-
-        def max_key
-          if data = keys_data.last
-            data[:key]
-          end
-        end
-
-        def count
-          keys_data.length
-        end
-
-        def can_insert_or_split?(key)
-          # NOTE: the !full? conditional is dependent that no key block ranges overlap
-          # and the only block with available slots is the only block with available
-          # slots. Otherwise, we may run into key overlapping issues, which will mess
-          # with ordering/fetching.
-          include_key?(key) || !full?
-        end
-
-        def can_insert_before?(key)
-          return false if full?
-
-          case order
-          when :asc
-            key < min_key
-          when :desc
-            key > min_key
-          end
-        end
-
-        def can_insert_between?(key, other_block)
-          return false unless self.full? && other_block.full?
-
-          block1, block2 = sort_blocks(self, other_block)
-
-          case order
-          when :asc
-            block1.max_key < key && key < block2.min_key
-          when :desc
-            block1.max_key > key && key > block2.min_key
-          end
-        end
-
-        def should_resize?
-          count >= size
-        end
-
-        protected
-
-        def sort_blocks(block1, block2)
-          blocks = if block1.max_key <= block2.max_key && block1.min_key <= block2.min_key
-                     [block1, block2]
-                   else
-                     [block2, block1]
-                   end
-          blocks.reverse! if order == :desc
-          blocks
-        end
-      end
-
       attr_reader :total_count, :meta_blocks, :key, :order
 
       def initialize(data)
         @key = data[:key]
         @order = data.fetch(:order).to_sym
         @meta_blocks = (data[:blocks] || []).map { |b| MetaBlock.new(b, order) }
+      end
+
+      def get_id_types_for_block_key(block_key)
+        meta_block = meta_blocks.find {|block| block.key == block_key }
+
+        raise CachedRecord::Error, "The block key was not found" unless meta_block
+
+        meta_block.id_types
       end
 
       def to_hash
