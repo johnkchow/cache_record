@@ -28,12 +28,8 @@ class TestDataFetcher
     @values = values
   end
 
-  def key_values_for_ids(ids)
-    @keys
-  end
-
-  def fetch_batch_for_type(ids, _type, _options)
-    ids.map { |k| @values[@keys.index(k)] }
+  def key_values_for_id_types(ids)
+    [@keys, @values]
   end
 end
 
@@ -56,10 +52,10 @@ RSpec.describe CachedRecord::Store::BlockCollection do
     TestAdapter.new(filtered_block_data.merge(header_key => header_data))
   end
 
-  let(:mock_data_adapter) { TestDataAdapter.new(keys, values) }
+  let(:mock_data_fetcher) { TestDataFetcher.new(keys, values) }
 
   let(:header_data) do
-    blocks = block_data.map {|k,b| build_meta_block(block_data) }
+    blocks = block_data.map {|k,b| debugger; build_meta_block(k,b) }
 
     total_count = block_data.inject(0) {|c,(_,b)| c + (b[:count] || b[:keys].length) }
     {
@@ -278,7 +274,6 @@ RSpec.describe CachedRecord::Store::BlockCollection do
     context "when order is asc and a block is missing" do
       include_context "asc order with missing block"
       it "should fetch the data from the adapter and return the items" do
-        debugger
         expect(subject.items(offset: 4, limit: 4)).to eq([8,9,12,16])
       end
     end
@@ -573,7 +568,13 @@ def fetch_blocks(*keys)
   keys.map {|k| CachedRecord::Store::Block.new(k, mock_store_adapter.read(k))}
 end
 
-def build_meta_block(block_hash)
-  keys_data = block_hash[:keys].map {|k| {id: k, key: k} }
-  block_hash.merge(keys_data: keys_data)
+def build_meta_block(block_key, block_hash)
+  keys, _values = block_hash.values_at(:keys, :values)
+  keys_data = (0..(keys.length-1)).inject([]) do |arr, i|
+    key = keys[i]
+    hash = {id: key, key: key}
+    arr << hash
+    arr
+  end
+  block_hash.merge(key: block_key, keys_data: keys_data)
 end
