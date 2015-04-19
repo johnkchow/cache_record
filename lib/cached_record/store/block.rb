@@ -2,6 +2,7 @@ class CachedRecord
   class Store
     class Block
       include CachedRecord::Model::Fields
+      include CachedRecord::Store::SplitArray
 
       field :size, :order, :keys, :values
 
@@ -38,11 +39,9 @@ class CachedRecord
       end
 
       def split(min_block_key, max_block_key)
-        split_index = (keys.length / 2).to_i - 1
-        first_keys = keys[0..split_index]
-        first_values = values[0..split_index]
-        last_keys = keys[(split_index + 1)..-1]
-        last_values = values[(split_index + 1)..-1]
+        first_keys, last_keys = split_array(keys)
+
+        first_values, last_values = split_array(values)
 
         [
           self.class.new(

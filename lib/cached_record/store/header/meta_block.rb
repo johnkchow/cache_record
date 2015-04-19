@@ -3,6 +3,7 @@ class CachedRecord
     class Header
       class MetaBlock
         include CachedRecord::Model::Fields
+        include CachedRecord::Store::SplitArray
 
         field :key, :size, :keys_data
 
@@ -60,15 +61,15 @@ class CachedRecord
         end
 
         def split
-          split_index = (keys_data.length / 2).to_i - 1
+          first, last = split_array(keys_data)
           [
             self.class.new({
               size: size,
-              keys_data: keys_data[0..split_index]
+              keys_data: first,
             }, order),
             self.class.new({
               size: size,
-              keys_data: keys_data[(split_index + 1)..-1]
+              keys_data: last,
             }, order),
           ]
         end
