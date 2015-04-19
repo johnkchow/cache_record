@@ -25,20 +25,15 @@ class CachedRecord
         # size from the meta data in the header block
         items = []
         items_left = limit
+
         first_block = blocks.first
-        if blocks.length == 1
-          assert("single block contains all items requested") do
-            start_index + limit <= first_block.count
-          end
-        end
         items.concat(first_block.values[start_index, items_left])
+
         items_left = limit - (first_block.count - start_index)
         blocks[1..-1].each do |block|
-          assert("items_left still positive", items_left > 0)
           items.concat(block.values[0, items_left])
           items_left -= block.count
         end
-        assert("no more pending items left", items_left <= 0)
         items
       end
 
@@ -208,16 +203,18 @@ class CachedRecord
             arr
           end
 
-          unfound_block_keys.each do |key|
-            meta_keys = header.keys_data_for_block_key(key)
-            keys, values = data_fetcher.fetch_batch_key_values(meta_keys)
+          unfound_block_keys.each do |block_key|
+            meta_keys = header.meta_keys_for_block_key(block_key)
+            block_keys, block_values = data_fetcher.fetch_key_values(meta_keys)
 
-            block = build_block(block_key, keys: keys, values: values)
+            block = build_block(block_key, keys: block_keys, values: block_values)
+            persist_block!(block)
 
-            ordered_blocks[keys_to_index[key]] = block
+            ordered_blocks[keys_to_index[block_key]] = block
           end
-        else
-          raw_blocks.each do |key, raw_block|
+        end
+        raw_blocks.each do |key, raw_block|
+          if raw_block
             block = build_block(key, raw_block)
 
             ordered_blocks[keys_to_index[key]] = block

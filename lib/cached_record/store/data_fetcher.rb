@@ -8,7 +8,7 @@ class CachedRecord
         @mapper = mapper
       end
 
-      def fetch_batch_key_values(meta_keys)
+      def fetch_key_values(meta_keys)
         order = {}
         types = {}
         keys = Array.new(meta_keys.length)

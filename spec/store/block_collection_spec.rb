@@ -28,7 +28,7 @@ class TestDataFetcher
     @values = values
   end
 
-  def key_values_for_id_types(ids)
+  def fetch_key_values(meta_keys)
     [@keys, @values]
   end
 end
@@ -46,18 +46,24 @@ RSpec.describe CachedRecord::Store::BlockCollection do
 
   let(:header_key) { "header" }
   let(:block_data) { {} }
-  let(:keys) { [] }
-  let(:values) { [] }
+  let(:missing_block_data) { {} }
+  let(:missing_keys) { missing_block_data.map {|k,v| v[:keys] }.flatten }
+  let(:missing_values) { missing_block_data.map {|k,v| v[:values] }.flatten }
 
   let(:mock_store_adapter) do
     filtered_block_data = block_data.select { |k,v| v[:keys] }
     TestAdapter.new(filtered_block_data.merge(header_key => header_data))
   end
 
-  let(:mock_data_fetcher) { TestDataFetcher.new(keys, values) }
+  let(:mock_data_fetcher) { TestDataFetcher.new(missing_keys, missing_values) }
 
   let(:header_data) do
-    blocks = block_data.map {|k,b| build_meta_block(k,b) }
+    all_block_data = block_data.merge(missing_block_data)
+
+    blocks = all_block_data.keys.sort.inject([]) do |array, key|
+      array << build_meta_block(key, all_block_data[key])
+      array
+    end
 
     total_count = block_data.inject(0) {|c,(_,b)| c + (b[:count] || b[:keys].length) }
     {
@@ -69,29 +75,21 @@ RSpec.describe CachedRecord::Store::BlockCollection do
 
   shared_context "simple asc order" do
     let(:order) { :asc }
-    let(:keys) { [1,2,3,4,5,6,7,8,9,10,11,12] }
-    let(:values) { [1,2,3,4,5,6,7,8,9,10,11,12] }
     let(:block_data) do
       {
         "block1" => {
-          min_key: 1,
-          max_key: 4,
           order: :asc,
           size: 20,
           keys: [1,2,3,4],
           values: [1,2,3,4],
         },
         "block2" => {
-          min_key: 5,
-          max_key: 8,
           order: :asc,
           size: 20,
           keys: [5,6,7,8],
           values: [5,6,7,8],
         },
         "block3" => {
-          min_key: 9,
-          max_key: 12,
           order: :asc,
           size: 20,
           keys: [9,10,11,12],
@@ -103,29 +101,21 @@ RSpec.describe CachedRecord::Store::BlockCollection do
 
   shared_context "simple desc order" do
     let(:order) { :desc }
-    let(:keys) { [12,11,10,9,8,7,6,5,4,3,2,1] }
-    let(:values) { [12,11,10,9,8,7,6,5,4,3,2,1] }
     let(:block_data) do
       {
         "block1" => {
-          min_key: 12,
-          max_key: 9,
           order: :desc,
           size: 20,
           keys: [12, 11, 10, 9],
           values: [12, 11, 10, 9],
         },
         "block2" => {
-          min_key: 8,
-          max_key: 5,
           order: :desc,
           size: 20,
           keys: [8, 7, 6, 5],
           values: [8, 7, 6, 5],
         },
         "block3" => {
-          min_key: 4,
-          max_key: 1,
           order: :desc,
           size: 20,
           keys: [4, 3, 2, 1],
@@ -137,30 +127,22 @@ RSpec.describe CachedRecord::Store::BlockCollection do
 
   shared_context "complex asc order" do
     let(:order) { :asc }
-    let(:keys) { [1,2,3,4,8,9,12,16] }
-    let(:values) { [1,2,3,4,8,9,12,16] }
 
     let(:block_data) do
       {
         "block1" => {
-          min_key: 1,
-          max_key: 4,
           size: 4,
           order: :asc,
           keys: [1,2,3,4],
           values: [1,2,3,4],
         },
         "block2" => {
-          min_key: 8,
-          max_key: 12,
           size: 4,
           order: :asc,
           keys: [8,9,12],
           values: [8,9,12],
         },
         "block3" => {
-          min_key: 16,
-          max_key: 16,
           size: 4,
           order: :asc,
           keys: [16],
@@ -172,30 +154,22 @@ RSpec.describe CachedRecord::Store::BlockCollection do
 
   shared_context "complex desc order" do
     let(:order) { :desc }
-    let(:keys) { [16,16,16,16,12,9,8,4] }
-    let(:values) { [16,16,16,16,12,9,8,4] }
 
     let(:block_data) do
       {
-        "block3" => {
-          min_key: 16,
-          max_key: 16,
+        "block1" => {
           size: 4,
           order: :desc,
           keys: [16, 16, 16, 16],
           values: [16, 16, 16, 16],
         },
         "block2" => {
-          min_key: 12,
-          max_key: 8,
           size: 4,
           order: :desc,
           keys: [12,9,8],
           values: [12,9,8],
         },
-        "block1" => {
-          min_key: 4,
-          max_key: 4,
+        "block3" => {
           size: 4,
           order: :desc,
           keys: [4],
@@ -207,33 +181,31 @@ RSpec.describe CachedRecord::Store::BlockCollection do
 
   shared_context "asc order with missing block" do
     let(:order) { :asc }
-    let(:keys) { [1,2,3,4,8,9,12,16] }
-    let(:values) { [1,2,3,4,8,9,12,16] }
 
     let(:block_data) do
       {
         "block1" => {
-          min_key: 1,
-          max_key: 4,
           size: 4,
           order: :asc,
           keys: [1,2,3,4],
           values: [1,2,3,4],
         },
-        "block2" => {
-          min_key: 8,
-          max_key: 12,
-          size: 4,
-          order: :asc,
-          count: 3,
-        },
         "block3" => {
-          min_key: 16,
-          max_key: 16,
           size: 4,
           order: :asc,
           keys: [16],
           values: [16],
+        }
+      }
+    end
+
+    let(:missing_block_data) do
+      {
+        "block2" => {
+          size: 4,
+          order: :asc,
+          keys: [8,9,12],
+          values: [8,9,12],
         }
       }
     end
@@ -275,7 +247,7 @@ RSpec.describe CachedRecord::Store::BlockCollection do
 
     context "when order is asc and a block is missing" do
       include_context "asc order with missing block"
-      it "should fetch the data from the adapter and return the items", skip: true do
+      it "should fetch the data from the adapter and return the items" do
         expect(subject.items(offset: 4, limit: 4)).to eq([8,9,12,16])
       end
     end
@@ -572,6 +544,7 @@ end
 
 def build_meta_block(block_key, block_hash)
   keys, _values = block_hash.values_at(:keys, :values)
+
   keys_data = (0..(keys.length-1)).inject([]) do |arr, i|
     key = keys[i]
     hash = {meta: key, key: key}

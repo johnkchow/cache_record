@@ -28,10 +28,6 @@ class CachedRecord
           end
         end
 
-        def id_types
-          keys_data
-        end
-
         def min_key
           if data = keys_data.first
             data[:key]

@@ -9,14 +9,6 @@ class CachedRecord
         @meta_blocks = (data[:blocks] || []).map { |b| MetaBlock.new(b, order) }
       end
 
-      def get_id_types_for_block_key(block_key)
-        meta_block = meta_blocks.find {|block| block.key == block_key }
-
-        raise CachedRecord::Error, "The block key was not found" unless meta_block
-
-        meta_block.id_types
-      end
-
       def to_hash
         {
           order: @order,
@@ -58,6 +50,11 @@ class CachedRecord
         # insert at the end
         insert_before ||= -1
         meta_blocks.insert(insert_before, new_block)
+      end
+
+      def meta_keys_for_block_key(block_key)
+        meta_block = find_meta_block(block_key)
+        meta_block.keys_data
       end
 
       def empty_blocks?
@@ -110,6 +107,10 @@ class CachedRecord
 
       def build_meta_block(block)
         MetaBlock.new(block.meta_hash, order)
+      end
+
+      def find_meta_block(block_key)
+        meta_blocks.find {|block| block.key == block_key }
       end
     end
   end
