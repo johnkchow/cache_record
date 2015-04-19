@@ -96,6 +96,7 @@ class CachedRecord
 
         keys.insert(index, key)
         values.insert(index, value)
+        index
       end
 
       def key_within_range?(key)

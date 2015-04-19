@@ -19,8 +19,8 @@ class CachedRecord
 
       def to_hash
         {
-          blocks: @meta_blocks.map {|b| b.to_hash },
           order: @order,
+          blocks: @meta_blocks.map {|b| b.to_hash },
         }
       end
 
@@ -28,7 +28,12 @@ class CachedRecord
         @meta_blocks.inject(0) { |sum, block| sum + block.count }
       end
 
-      def add_block(data)
+      def create_block(block_key:, key:, meta_key:)
+        data = {
+          key: block_key,
+          keys_data: [{key: key, meta: meta_key}]
+        }
+
         new_block = MetaBlock.new(data, order)
 
         # TODO do binary search instead of linear
@@ -63,12 +68,13 @@ class CachedRecord
         @meta_blocks.count
       end
 
-      def update_block(block)
-        meta_block = meta_blocks.find { |b| b.key == block.key }
-        meta_block.min_key = block.min_key
-        meta_block.max_key = block.max_key
-        meta_block.count = block.count
-        meta_block.size = block.size
+      def split_meta_block(block_key)
+        index = meta_blocks.index {|mb| mb.key == block_key }
+        meta_block = meta_blocks[index]
+        first, last = meta_block.split
+        meta_blocks.insert(index, first)
+        meta_blocks[index + 1] = last
+        [first, last]
       end
 
       def block_keys_for_offset_limit(offset, limit)
@@ -98,25 +104,6 @@ class CachedRecord
         end
 
         [block_keys, first_block_offset]
-      end
-
-      # NOTE: Possible critical section
-      def replace(original_block_key, new_blocks)
-        copy_blocks = Array.new(@meta_blocks.count - 1 + new_blocks.count)
-        copy_index = 0
-        @meta_blocks.each do |meta_block|
-          if meta_block.key == original_block_key
-            new_blocks.each_with_index do |block, i|
-              copy_blocks[copy_index + i] = build_meta_block(block)
-            end
-            copy_index += new_blocks.count - 1
-          else
-            copy_blocks[copy_index] = meta_block
-          end
-          copy_index += 1
-        end
-
-        @meta_blocks = copy_blocks
       end
 
       protected

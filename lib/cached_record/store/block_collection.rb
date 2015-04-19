@@ -15,7 +15,6 @@ class CachedRecord
         @header = get_header(header_key)
         @block_size = block_size
         @order = order.to_sym
-        @blocks = {}
       end
 
       def items(offset:, limit:)
@@ -43,7 +42,7 @@ class CachedRecord
         items
       end
 
-      def insert(key, value)
+      def insert(meta_key, key, value)
         # if we have no blocks
         #   create new block
         #   insert value into that block
@@ -68,27 +67,27 @@ class CachedRecord
         #   insert new block at the end of blocks
 
         if header.empty_blocks?
-          block = create_new_block(key, value)
-          update_meta_block_and_persist!(block)
+          block = create_new_block(meta_key, key, value)
+          persist_block!(block)
         else
           meta_blocks = header.meta_blocks
           if meta_blocks.first.can_insert_before?(key)
-            block = create_new_block(key, value)
-            update_meta_block_and_persist!(block)
+            block = create_new_block(meta_key, key, value)
+            persist_block!(block)
           else
             # NOTE: do binary search instead of linear
             meta_blocks.each_with_index do |meta_block, i|
               next_meta_block = meta_blocks[i + 1]
 
               if meta_block.include_key?(key)
-                insert_within_block!(meta_block, key, value)
+                insert_within_block!(meta_block, meta_key, key, value)
                 break
               elsif !meta_block.full? && (!next_meta_block || next_meta_block.can_insert_before?(key))
-                insert_within_block!(meta_block, key, value)
+                insert_within_block!(meta_block, meta_key, key, value)
                 break
               elsif meta_block.can_insert_between?(key, next_meta_block)
-                block = create_new_block(key, value)
-                update_meta_block_and_persist!(block)
+                block = create_new_block(meta_key, key, value)
+                persist_block!(block)
                 break
               end
             end
@@ -134,10 +133,6 @@ class CachedRecord
         # rebalance keys/items if necessary with surrounding blocks
       end
 
-      def save_block!(block)
-        update_meta_block_and_persist!(block)
-        persist_header!
-      end
 
       protected
 
@@ -145,41 +140,45 @@ class CachedRecord
         store_adapter.write(header.key, header.to_hash)
       end
 
-      def update_meta_block_and_persist!(blocks)
-        Array(blocks).each do |block|
-          update_meta_block(block)
-          store_adapter.write(block.key, block.to_hash)
-        end
+      def persist_block!(block)
+        store_adapter.write(block.key, block.to_hash)
       end
 
-      def create_new_block(key, value)
+      def create_new_block(meta_key, key, value)
         block = build_block(nil, keys: [key], values: [value])
-        header.add_block(block.meta_hash)
+        header.create_block(
+          block_key: block.key,
+          key: key,
+          meta_key: meta_key
+        )
 
         block
       end
 
-      def update_meta_block(block)
-        header.update_block(block)
-      end
-
-      def insert_within_block!(meta_block, key, value)
+      def insert_within_block!(meta_block, meta_key, key, value)
         block = get_block(meta_block.key)
         if meta_block.should_resize?
+          split_meta_blocks = header.split_meta_block(meta_block.key)
           blocks = split_block(block)
-          insert_block = blocks.find {|b| b.key_within_range?(key) }
-          insert_block.insert(key, value)
 
-          header.replace(meta_block.key, blocks)
+          inserted = false
 
-          update_meta_block_and_persist!(blocks)
-          # TODO: don't delete until we save the header in the future
-          @blocks.delete(block.key)
+          blocks.each_with_index do |b, index|
+            meta_block = split_meta_blocks[index]
+
+            meta_block.key = b.key
+            if !inserted && b.key_within_range?(key)
+              index = b.insert(key, value)
+              meta_block.insert(meta_key, key, index)
+              inserted = true
+            end
+            persist_block!(b)
+          end
         else
-          block.insert(key, value)
-          update_meta_block(block)
+          index = block.insert(key, value)
+          meta_block.insert(meta_key, key, index)
 
-          update_meta_block_and_persist!(block)
+          persist_block!(block)
         end
       end
 
@@ -195,53 +194,33 @@ class CachedRecord
 
       def get_blocks(keys)
         ordered_blocks = Array.new(keys.length)
-        unfound_keys = []
         keys_to_index = {}
 
         keys.each_with_index do |k, i|
           keys_to_index[k] = i
-
-          if block = @blocks[k]
-            ordered_blocks[i] = block
-          else
-            unfound_keys << k
-          end
         end
 
-        if unfound_keys.any?
-          raw_blocks = store_adapter.read_multi(*unfound_keys)
+        raw_blocks = store_adapter.read_multi(*keys)
 
-          if raw_blocks.any? {|k,v| v.nil? }
-            # clear the blocks
-            @blocks = {}
-            # fetch all the keys
-            # update the header's meta blocks
-            # fetch all the data that's needed for the blocks
-            # reconstitute the blocks
-            # persist the blocks
-            # and then return the blocks
+        if raw_blocks.any? {|k,v| v.nil? }
+          unfound_block_keys = raw_blocks.inject([]) do |arr, (k, v)|
+            arr << k if v.nil?
+            arr
+          end
 
-            unfound_block_keys = raw_blocks.inject([]) do |arr, (k, v)|
-              arr << k if v.nil?
-              arr
-            end
+          unfound_block_keys.each do |key|
+            meta_keys = header.keys_data_for_block_key(key)
+            keys, values = data_fetcher.fetch_batch_key_values(meta_keys)
 
-            unfound_block_keys.each do |key|
-              ids_types = header.get_id_types_for_block_key(key)
-              keys, values = data_fetcher.key_values_for_id_types(id_types)
+            block = build_block(block_key, keys: keys, values: values)
 
-              block = build_block(block_key, keys: keys, values: values)
+            ordered_blocks[keys_to_index[key]] = block
+          end
+        else
+          raw_blocks.each do |key, raw_block|
+            block = build_block(key, raw_block)
 
-              @blocks[key] = block
-              ordered_blocks[keys_to_index[key]] = block
-            end
-          else
-            raw_blocks.each do |key, raw_block|
-              block = build_block(key, raw_block)
-
-              @blocks[key] = block
-              ordered_blocks[keys_to_index[key]] = block
-            end
+            ordered_blocks[keys_to_index[key]] = block
           end
         end
         ordered_blocks

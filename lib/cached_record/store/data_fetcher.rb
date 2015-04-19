@@ -8,13 +8,13 @@ class CachedRecord
         @mapper = mapper
       end
 
-      def key_values_for_id_types(id_types)
+      def fetch_batch_key_values(meta_keys)
         order = {}
         types = {}
-        keys = Array.new(id_types.length)
-        values = Array.new(id_types.length)
+        keys = Array.new(meta_keys.length)
+        values = Array.new(meta_keys.length)
 
-        id_types.each_with_index do |hash, i|
+        meta_keys.each_with_index do |hash, i|
           id, type = hash.values_at(:id, :type)
           type ||= :default
 

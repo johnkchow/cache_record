@@ -47,12 +47,30 @@ class CachedRecord
           keys_data.length
         end
 
+        def insert(meta_key, key, index)
+          keys_data.insert(index, key: key, meta: meta_key)
+        end
+
         def can_insert_or_split?(key)
           # NOTE: the !full? conditional is dependent that no key block ranges overlap
           # and the only block with available slots is the only block with available
           # slots. Otherwise, we may run into key overlapping issues, which will mess
           # with ordering/fetching.
           include_key?(key) || !full?
+        end
+
+        def split
+          split_index = (keys_data.length / 2).to_i - 1
+          [
+            self.class.new({
+              size: size,
+              keys_data: keys_data[0..split_index]
+            }, order),
+            self.class.new({
+              size: size,
+              keys_data: keys_data[(split_index + 1)..-1]
+            }, order),
+          ]
         end
 
         def can_insert_before?(key)

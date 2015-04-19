@@ -5,6 +5,18 @@ class CachedRecord
     def initialize(store:, mapper:)
       @store = store
       @mapper = mapper
+
+      # we first try to load the header info from memcache
+      # if it's blank, let's fetch the IDs/Keys from the DB
+      # then we create the header meta information w/ the ID/Keys
+      #
+      # data_fetcher.fetch_keys_data
+      #
+      #
+      # Upon missing block data, we use the same datafetcher to fetch the missing block data
+      #
+      # header.keys_data_for_block_data(keys_data)
+      # data_fetcher.fetch_batch_values(keys_data)
     end
 
     def values(offset:, limit:)
@@ -53,18 +65,7 @@ class CachedRecord
       model
     end
 
-    def add(id, object, type = nil)
-      # check that the type is valid
-      #   if the mapping has multiple types, it should be inthat
-      #   if the mapping has single type, it should just be nil
-      #
-      # Run the mapper to get the model
-      # get raw attributes of the model
-      # tell the store to update the store with attributes
-      #   if the item already exists as duplicate in block, explode
-      # tell the store to persist
-
-      #model = mapper.
+    def add(id, object, mapper_name = nil)
     end
   end
 end
