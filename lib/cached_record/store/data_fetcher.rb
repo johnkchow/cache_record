@@ -26,7 +26,7 @@ class CachedRecord
         types.each do |type, ids|
           data_rows = data_adapter.fetch_batch(ids, type)
           data_rows.each do |data|
-            hash = mapper.serialize_data(data)
+            hash = mapper.normalize_data(data)
             i = order[[hash[:id], type]]
             keys[i] = hash[:key]
             values[i] = hash[:value]

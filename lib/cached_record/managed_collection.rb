@@ -24,7 +24,7 @@ class CachedRecord
       #     cache the built up model into hash (id => block, model)
       # return the values
       items = store.items(offset: offset, limit: limit)
-      items.map { |i| mapper.serialize_model(i) }
+      items.map { |i| mapper.build_model(i) }
     end
 
     def update_model(model)
@@ -46,7 +46,7 @@ class CachedRecord
 
       return unless managed_item
 
-      model = mapper.serialize_model(managed_item.value)
+      model = mapper.build_model(managed_item.value)
       mapper.map(model, object, mapper_name)
       managed_item.value = model.to_hash
       managed_item.save!

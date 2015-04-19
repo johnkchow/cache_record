@@ -42,7 +42,12 @@ class CachedRecord
     end
   end
 
-  def serialize_model(raw_data)
+  def normalize_data(data)
+    model = model_class.new
+    map(model, data).to_hash
+  end
+
+  def build_model(raw_data)
     model_class.new.tap do |m|
       m.from_hash(raw_data)
     end
