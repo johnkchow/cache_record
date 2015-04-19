@@ -91,7 +91,7 @@ class CachedRecord
         first_block_offset = offset_left
 
         last_block_index = start_block_index
-        limit_left = limit - (meta_blocks[start_block_index].count - first_block_offset + 1)
+        limit_left = limit - (meta_blocks[start_block_index].count - first_block_offset)
         if limit_left > 0
           while (block = meta_blocks[last_block_index]) && limit_left > 0
             limit_left -= block.count

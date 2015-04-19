@@ -21,7 +21,7 @@ tests = [
         [0..2,0]
       ]
     ]
-  }
+  },
 ]
 
 RSpec::Matchers.define :be_same_block_data_as do |expected|
@@ -57,6 +57,49 @@ RSpec.describe CachedRecord::Store::Header do
               expect(blocks).to be_same_block_data_as(block_range.to_a)
               expect(start).to eq(start_index)
             end
+          end
+        end
+      end
+
+      context "for non-contiguous blocks" do
+        context "when offset 4, limit 4" do
+          subject do
+            described_class.new(
+              order: :asc,
+              blocks: [
+                {
+                  key: '1',
+                  size: 4,
+                  keys_data: [
+                    {meta: 1, key: 1},
+                    {meta: 2, key: 2},
+                    {meta: 3, key: 3},
+                    {meta: 4, key: 4},
+                  ]
+                },
+                {
+                  key: '2',
+                  size: 4,
+                  keys_data: [
+                    {meta: 8, key: 8},
+                    {meta: 9, key: 9},
+                    {meta: 12, key: 12},
+                  ]
+                },
+                {
+                  key: '3',
+                  size: 4,
+                  keys_data: [
+                    {meta: 16, key: 16},
+                  ]
+                },
+              ]
+            )
+          end
+          it "should return 8,9,12,16" do
+            blocks, start = subject.block_keys_for_offset_limit(4, 4)
+            expect(blocks).to eq(['2','3'])
+            expect(start).to eq(0)
           end
         end
       end
