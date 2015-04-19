@@ -297,7 +297,7 @@ RSpec.describe CachedRecord::Store::BlockCollection do
           expect(block.min_key).to eq(1)
           expect(block.max_key).to eq(1)
           expect(block.count).to eq(1)
-          expect(block.items).to eq([1])
+          expect(block.values).to eq([1])
         end
       end
 
@@ -311,7 +311,7 @@ RSpec.describe CachedRecord::Store::BlockCollection do
           it "should persist the block with the inserted middle" do
             subject.insert(10, 10, 10)
             block2 = fetch_blocks("block2").first
-            expect(block2.items).to eq ([8,9,10,12])
+            expect(block2.values).to eq ([8,9,10,12])
           end
 
           it "should increment the meta block count" do
@@ -444,7 +444,7 @@ RSpec.describe CachedRecord::Store::BlockCollection do
           expect(block.min_key).to eq(1)
           expect(block.max_key).to eq(1)
           expect(block.count).to eq(1)
-          expect(block.items).to eq([1])
+          expect(block.values).to eq([1])
         end
       end
 
@@ -458,7 +458,7 @@ RSpec.describe CachedRecord::Store::BlockCollection do
           it "should persist the block with the inserted middle" do
             subject.insert(10, 10, 10)
             block2 = fetch_blocks("block2").first
-            expect(block2.items).to eq ([12,10,9,8])
+            expect(block2.values).to eq ([12,10,9,8])
           end
         end
 

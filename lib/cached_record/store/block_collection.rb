@@ -31,11 +31,11 @@ class CachedRecord
             start_index + limit <= first_block.count
           end
         end
-        items.concat(first_block.items[start_index, items_left])
+        items.concat(first_block.values[start_index, items_left])
         items_left = limit - (first_block.count - start_index)
         blocks[1..-1].each do |block|
           assert("items_left still positive", items_left > 0)
-          items.concat(block.items[0, items_left])
+          items.concat(block.values[0, items_left])
           items_left -= block.count
         end
         assert("no more pending items left", items_left <= 0)

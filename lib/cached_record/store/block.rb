@@ -18,10 +18,6 @@ class CachedRecord
         keys.length
       end
 
-      def items
-        values
-      end
-
       def min_key
         keys.first
       end
