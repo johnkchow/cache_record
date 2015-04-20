@@ -1,5 +1,6 @@
 require "red_black_tree"
 require "cached_record/util/assertion"
+require "cached_record/mapper"
 require "cached_record/manager"
 require "cached_record/model/fields"
 require "cached_record/store/split_array"

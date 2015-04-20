@@ -37,12 +37,15 @@ class CachedRecord
 
       def initialize(attributes = nil)
         raise ArgumentError, "Attributes must be a hash" unless attributes
+        @attributes = {}
 
         from_hash(attributes || {})
       end
 
       def from_hash(attributes)
-        @attributes = attributes
+        attributes.each do |key, value|
+          @attributes[key.to_sym] = value
+        end
       end
 
       def to_hash

@@ -21,12 +21,8 @@ class CachedRecord
         block.keys[index]
       end
 
-      def key=(key)
-        block.keys[index] = key
-      end
-
       def save!
-        store.save_block!(block)
+        store.persist_block!(block)
       end
     end
   end

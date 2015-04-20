@@ -4,12 +4,19 @@ class CachedRecord
 
     class << self
 
-      def model(model = nil)
-        if model
-          @model = model
-        else
-          @model
+      def model(model, options = {})
+        type = options[:type] || :default
+        model_mappings[type] = model
+
+        define_method("map_raw_#{type}") do |*args|
+          self.map_raw_type(type, *args)
         end
+
+        map("raw_#{type}".to_sym, method: "map_raw_#{type}")
+      end
+
+      def model_mappings
+        @models ||= {}
       end
 
       def map(source, options = {})
@@ -25,42 +32,78 @@ class CachedRecord
         # TODO: not thread safe
         @mappings ||= {}
       end
+
+      def version(v = nil)
+        @version ||= 1
+
+        @version = v if v
+
+        @version
+      end
     end
-  end
 
-  def initialize
-  end
+    def map(model, data_object, name = nil)
+      unless map_options = get_map_options(data_object, name)
+        raise MapperError, "Cannot find mapping options for #{data_object}"
+      end
 
-  def map(model, object, name = nil)
-    unless map_options = get_map_options(name, object)
-      raise MapperError, "Cannot find mapping options for #{object}"
+      mapper = map_options[:mapper]
+      if mapper.is_a?(Symbol)
+        self.send(mapper, model, data_object)
+      end
+      model
     end
 
-    mapper = map_options[:mapper]
-    if mapper.is_a?(Symbol)
-      self.send(mapper, model, object)
+    def normalize_data(data_object, type = :default)
+      model = data_to_model(data_object)
+      model.to_hash
     end
-  end
 
-  def normalize_data(data)
-    model = model_class.new
-    map(model, data).to_hash
-  end
-
-  def build_model(raw_data)
-    model_class.new.tap do |m|
-      m.from_hash(raw_data)
+    def data_to_model(data_object, type = :default)
+      model = build_model(type)
+      map(model, data_object)
+      model
     end
-  end
 
-  protected
+    def serialize_data(data_object, type = nil)
+      data_hash = normalize_data(data_object)
 
-  def get_map_options(name, object)
-    if name
-      options = self.class.mappings[name]
-    else
-      options = self.class.mappings[object.class]
+      unless map_options = get_map_options(data_object, "raw_#{type}".to_sym)
+        raise MapperError, "Cannot find mapping options for #{data_object}"
+      end
+
+      serialized = {
+        version: self.class.version,
+        data: data_hash,
+      }
+
+      if type = map_options[:type]
+        serialized[:type] = type.to_s
+      end
+
+      serialized
     end
-    options
+
+    protected
+
+    def build_model(type, raw_data = {})
+      model_class(type).new.tap do |m|
+        m.from_hash(raw_data)
+      end
+    end
+
+
+    def model_class(type)
+      self.class.model_mappings[type.to_sym]
+    end
+
+    def get_map_options(object, name = nil)
+      if name
+        options = self.class.mappings[name]
+      else
+        options = self.class.mappings[object.class]
+      end
+      options
+    end
   end
 end
