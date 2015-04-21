@@ -26,7 +26,7 @@ RSpec.describe CachedRecord::Mapper do
   end
 
   class TestMapper < CachedRecord::Mapper
-    model TestModel
+    model TestModel, type: :test_model
 
     version 1
 
@@ -57,7 +57,7 @@ RSpec.describe CachedRecord::Mapper do
 
   describe "#serialize_data" do
     it "should return a hash with meta data along with serialized data" do
-      serialized = subject.serialize_data(data_object)
+      serialized = subject.serialize_data(data_object, :test_model)
       expect(serialized).to include(
         type: 'test_model',
         version: 1,

@@ -1,18 +1,16 @@
 class CachedRecord
   class Mapper
-    @mutex = Mutex.new
-
     class << self
 
       def model(model, options = {})
         type = options[:type] || :default
         model_mappings[type] = model
 
-        define_method("map_raw_#{type}") do |*args|
-          self.map_raw_type(type, *args)
+        define_method("map_raw_#{type}") do |raw_data, opts|
+          self.map_raw_type(type, raw_data, opts)
         end
 
-        map("raw_#{type}".to_sym, method: "map_raw_#{type}")
+        map("raw_#{type}".to_sym, type: type, method: "map_raw_#{type}")
       end
 
       def model_mappings
@@ -44,7 +42,7 @@ class CachedRecord
 
     def map(model, data_object, name = nil)
       unless map_options = get_map_options(data_object, name)
-        raise MapperError, "Cannot find mapping options for #{data_object}"
+        raise MappingError, "Cannot find mapping options for #{data_object}"
       end
 
       mapper = map_options[:mapper]
@@ -54,22 +52,22 @@ class CachedRecord
       model
     end
 
-    def normalize_data(data_object, type = :default)
+    def normalize_data(data_object, type: :default, name: nil)
       model = data_to_model(data_object)
       model.to_hash
     end
 
-    def data_to_model(data_object, type = :default)
+    def data_to_model(data_object, type: :default, name: nil)
       model = build_model(type)
       map(model, data_object)
       model
     end
 
-    def serialize_data(data_object, type = nil)
-      data_hash = normalize_data(data_object)
+    def serialize_data(data_object, type: :default, name: nil)
+      data_hash = normalize_data(data_object, type)
 
       unless map_options = get_map_options(data_object, "raw_#{type}".to_sym)
-        raise MapperError, "Cannot find mapping options for #{data_object}"
+        raise MappingError, "Cannot find mapping options for 'raw_#{type}'"
       end
 
       serialized = {
@@ -86,12 +84,15 @@ class CachedRecord
 
     protected
 
+    def map_raw_type(type, raw_data, options)
+      build_model(type)
+    end
+
     def build_model(type, raw_data = {})
       model_class(type).new.tap do |m|
         m.from_hash(raw_data)
       end
     end
-
 
     def model_class(type)
       self.class.model_mappings[type.to_sym]
