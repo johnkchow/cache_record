@@ -36,7 +36,7 @@ class CachedRecord
         types.each do |type, ids|
           data_objects = data_adapter.fetch_batch(ids, type)
           data_objects.each do |data|
-            hash = mapper.serialize_data(data)
+            hash = mapper.serialize_data(data, name: "raw_#{type}")
 
             id = hash[:data].fetch(:id)
             key = hash[:data].fetch(sort_key)
