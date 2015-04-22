@@ -12,9 +12,10 @@ class CachedRecord
                      block_size: CachedRecord.config.block_size)
         @store_adapter = store_adapter
         @data_fetcher = data_fetcher
-        @header = get_header(header_key)
         @block_size = block_size
         @order = order.to_sym
+        @header_key = header_key
+        @header = get_header(header_key)
       end
 
       def items(offset:, limit:)
@@ -131,6 +132,8 @@ class CachedRecord
 
       protected
 
+      attr_reader :header_key
+
       def persist_header!
         store_adapter.write(header.key, header.to_hash)
       end
@@ -230,17 +233,27 @@ class CachedRecord
       end
 
       def build_block_key
-        "#{header.key}:block:#{SecureRandom.uuid}"
+        "#{header_key}:block:#{SecureRandom.uuid}"
       end
 
       def get_header(key)
-        header_data = store_adapter.read(key) || get_header_attributes
+        header_data = store_adapter.read(key) || fetch_header_attributes
         Header.new(header_data.merge(key: key))
       end
 
-      def get_header_attributes
+      def fetch_header_attributes
+        meta_keys = data_fetcher.fetch_meta_keys
+        blocks = meta_keys.each_slice(block_size).inject([]) do |arr, keys_data|
+          arr << {
+            key: build_block_key,
+            size: block_size,
+            keys_data: keys_data
+          }
+        end
+
         {
-          order: order
+          order: order,
+          blocks: blocks,
         }
       end
     end

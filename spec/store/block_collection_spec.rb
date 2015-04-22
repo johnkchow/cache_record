@@ -26,10 +26,28 @@ class TestDataFetcher
   def initialize(keys, values)
     @keys = keys
     @values = values
+
+    @keys_index = {}
+    @keys.each_with_index do |k,i|
+      @keys_index[k] = i
+    end
   end
 
   def fetch_key_values(meta_keys)
-    [@keys, @values]
+    keys = []
+    values = []
+    meta_keys.map do |h|
+      index = @keys_index[h[:meta]]
+      keys << @keys[index]
+      values << @values[index]
+    end
+    [keys, values]
+  end
+
+  def fetch_meta_keys
+    @keys.map do |k|
+      {key: k, meta: k}
+    end
   end
 end
 
@@ -47,15 +65,14 @@ RSpec.describe CachedRecord::Store::BlockCollection do
   let(:header_key) { "header" }
   let(:block_data) { {} }
   let(:missing_block_data) { {} }
-  let(:missing_keys) { missing_block_data.map {|k,v| v[:keys] }.flatten }
-  let(:missing_values) { missing_block_data.map {|k,v| v[:values] }.flatten }
+  let(:fetcher_keys) { missing_block_data.map {|k,v| v[:keys] }.flatten }
+  let(:fetcher_values) { missing_block_data.map {|k,v| v[:values] }.flatten }
 
+  let(:mock_data_fetcher) { TestDataFetcher.new(fetcher_keys, fetcher_values) }
   let(:mock_store_adapter) do
     filtered_block_data = block_data.select { |k,v| v[:keys] }
     TestAdapter.new(filtered_block_data.merge(header_key => header_data))
   end
-
-  let(:mock_data_fetcher) { TestDataFetcher.new(missing_keys, missing_values) }
 
   let(:header_data) do
     all_block_data = block_data.merge(missing_block_data)
@@ -211,7 +228,34 @@ RSpec.describe CachedRecord::Store::BlockCollection do
     end
   end
 
+  describe "#initialize" do
+    context "when the header is nil" do
+      let(:header_data) { nil }
+      let(:order) { :asc }
+      let(:fetcher_keys) { (1..12).to_a }
+      let(:fetcher_values) { (1..12).to_a }
+
+      it "should regenerate the header" do
+        header = subject.header
+        expect(header.total_count).to eq(12)
+      end
+    end
+  end
+
   describe "#items" do
+
+    context "when header isn't in cache" do
+      let(:order) { :asc }
+      let(:header_data) { nil }
+      let(:fetcher_keys) { (1..12).to_a }
+      let(:fetcher_values) { (1..12).to_a }
+
+      context "offset 2, limit 4" do
+        it "should return [3,4,5,6]" do
+          expect(subject.items(offset: 2, limit: 4)).to eq([3,4,5,6])
+        end
+      end
+    end
 
     context "when order is asc" do
       include_context "simple asc order"
