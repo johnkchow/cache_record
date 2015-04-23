@@ -531,13 +531,13 @@ RSpec.describe CachedRecord::Store::BlockCollection do
     end
   end
 
-  describe "#find" do
+  describe "#find_by_meta" do
     context "simple asc order" do
       include_context "simple asc order"
 
       context "find block actually finds an item" do
         it "should return managed object" do
-          managed_object = subject.find { |v| v == 12 }
+          managed_object = subject.find_by_meta { |meta| meta == 12 }
           expect(managed_object.key).to eq(12)
           expect(managed_object.value).to eq(12)
         end
@@ -545,7 +545,7 @@ RSpec.describe CachedRecord::Store::BlockCollection do
 
       context "find block doesn't find an item" do
         it "should return nil" do
-          expect(subject.find {|v| v == -1 }).to be_nil
+          expect(subject.find_by_meta {|meta| meta == -1 }).to be_nil
         end
       end
     end
@@ -555,7 +555,7 @@ RSpec.describe CachedRecord::Store::BlockCollection do
 
       context "find block actually finds an item" do
         it "should return managed object" do
-          managed_object = subject.find { |v| v == 5 }
+          managed_object = subject.find_by_meta { |v| v == 5 }
           expect(managed_object.key).to eq(5)
           expect(managed_object.value).to eq(5)
         end
@@ -563,7 +563,7 @@ RSpec.describe CachedRecord::Store::BlockCollection do
 
       context "find block doesn't find an item" do
         it "should return nil" do
-          expect(subject.find {|v| v == -1 }).to be_nil
+          expect(subject.find_by_meta {|v| v == -1 }).to be_nil
         end
       end
     end

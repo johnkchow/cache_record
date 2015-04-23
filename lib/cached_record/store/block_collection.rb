@@ -92,17 +92,13 @@ class CachedRecord
         persist_header!
       end
 
-      def find
+      def find_by_meta(&block)
         found_block = nil
         found_index = nil
         header.meta_blocks.each do |meta_block|
-          block = get_block(meta_block.key)
-          block.values.each_with_index do |item, i|
-            if yield(item)
-              found_block = block
-              found_index = i
-              break
-            end
+          if index = meta_block.find_by_meta(&block)
+            found_block = get_block(meta_block.key)
+            found_index = index
           end
         end
 

@@ -94,6 +94,16 @@ class CachedRecord
           end
         end
 
+        def find_by_meta
+          keys_data.each_with_index do |kd, i|
+            if yield(kd[:meta])
+              return i
+            end
+          end
+
+          nil
+        end
+
         def should_resize?
           count >= size
         end
