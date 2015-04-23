@@ -42,6 +42,45 @@ class CachedRecord
       end
     end
 
+    attr_reader :version
+
+    def initialize(version: self.class.version)
+      @version = version
+    end
+
+    def normalize_data(data_object, name: nil)
+      mapped_model = map_data_object(data_object, name: name)
+      mapped_model.model.to_hash
+    end
+
+    def map_data_object(data_object, name: nil)
+      map_context = get_map_context!(data_object, name)
+
+      model = build_model(map_context[:type])
+      map(model, data_object, name: name)
+
+      MappedModel.new(
+        version: self.version,
+        type: map_context[:type],
+        model: model
+      )
+    end
+
+    def map_raw_data(raw_data)
+      type = raw_data[:type]
+
+      map_data_object(raw_data, "raw_#{type}")
+    end
+
+    def serialize_data(data_object, name: nil)
+      mapped_model = map_data_object(data_object, name: name)
+
+      mapped_model.to_hash
+    end
+
+    protected
+
+
     def map(model, data_object, name: nil)
       map_context = get_map_context!(data_object, name)
 
@@ -51,33 +90,6 @@ class CachedRecord
       end
       model
     end
-
-    def normalize_data(data_object, name: nil)
-      model = data_to_model(data_object, name: name)
-      model.to_hash
-    end
-
-    def data_to_model(data_object, name: nil)
-      map_context = get_map_context!(data_object, name)
-
-      model = build_model(map_context[:type])
-      map(model, data_object, name: name)
-      model
-    end
-
-    def serialize_data(data_object, name: nil)
-      data_hash = normalize_data(data_object, name: name)
-
-      map_context = get_map_context!(data_object, name)
-
-      {
-        version: self.class.version,
-        type: map_context[:type].to_s,
-        data: data_hash,
-      }
-    end
-
-    protected
 
     def map_raw_data(model, raw_data)
       model.from_hash(raw_data)

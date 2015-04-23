@@ -50,23 +50,18 @@ RSpec.describe CachedRecord::Mapper do
 
   let(:data_object) { TestRecord.new }
 
-  describe "#map" do
-    it "should call the mapping" do
-      model = TestModel.new
-      expect { subject.map(model, data_object) }.to change { model.prop }.from(nil).to('foo')
-    end
-  end
-
   describe "#normalize_data" do
     it "should return a hash value" do
       expect(subject.normalize_data(data_object)).to eq(prop: 'foo')
     end
   end
 
-  describe "#data_to_model" do
+  describe "#map_data_object" do
     context "when passing raw data :raw_default as the name" do
       it "should return a model of the default type" do
-        model = subject.data_to_model({prop: "default"}, name: :raw_default)
+        mapped_model = subject.map_data_object({prop: "default"}, name: :raw_default)
+
+        model = mapped_model.model
         expect(model.prop).to eq("default")
         expect(model).to be_a(TestModel)
         expect(model).to_not be_a(TestChildModel)
@@ -74,8 +69,9 @@ RSpec.describe CachedRecord::Mapper do
     end
 
     context "when passing raw data :raw_test_child as the name" do
-      it "should return a model of the default type" do
-        model = subject.data_to_model({prop: "child"}, name: :raw_test_child)
+      it "should return a mapped model of the default type" do
+        mapped_model = subject.map_data_object({prop: "child"}, name: :raw_test_child)
+        model = mapped_model.model
         expect(model.prop).to eq("child")
         expect(model).to be_a(TestChildModel)
       end
@@ -87,7 +83,7 @@ RSpec.describe CachedRecord::Mapper do
       it "should return a hash with meta data along with serialized data" do
         serialized = subject.serialize_data(data_object)
         expect(serialized).to include(
-          type: 'test_child',
+          type: :test_child,
           version: 1,
           data: {prop: 'foo'}
         )
@@ -98,7 +94,7 @@ RSpec.describe CachedRecord::Mapper do
       it "should return a hash with meta data along with serialized data" do
         serialized = subject.serialize_data(data_object, name: :test_record_2)
         expect(serialized).to include(
-          type: 'test_child',
+          type: :test_child,
           version: 1,
           data: {prop: 'foo2'}
         )

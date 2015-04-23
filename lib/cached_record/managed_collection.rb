@@ -5,36 +5,9 @@ class CachedRecord
     def initialize(store:, mapper:)
       @store = store
       @mapper = mapper
-
-      # we first try to load the header info from memcache
-      # if it's blank, let's fetch the IDs/Keys from the DB
-      # then we create the header meta information w/ the ID/Keys
-      #
-      # data_fetcher.fetch_keys_data
-      #
-      #
-      # Upon missing block data, we use the same datafetcher to fetch the missing block data
-      #
-      # header.keys_data_for_block_data(keys_data)
-      # data_fetcher.fetch_batch_values(keys_data)
     end
 
     def values(offset:, limit:)
-      # first find the raw blocks that the offset/limit overlap
-      #   load header block
-      #     fetch from memcache
-      #     deserialize data
-      #   then iterate through each block meta info to determine if the offset/limit to find the exact block keys
-      #   load the blocks into the memory
-      #     multi-fetch from memcache
-      #     deserialize data
-      #   return the blocks
-      #
-      # for each block
-      #   for each underlying value
-      #     run the mapper to build up a model
-      #     cache the built up model into hash (id => block, model)
-      # return the values
       items = store.items(offset: offset, limit: limit)
       items.map { |i| mapper.build_model(i) }
     end
@@ -50,22 +23,23 @@ class CachedRecord
       # persist the block
       #   serialize all block data
       #   write to key
-
     end
 
-    def update(id, object, mapper_name = nil)
-      managed_item = store.find { |d| d[:id] == id}
+    def update(id, object, type = nil)
+      managed_item = store.find_by_meta {|meta| meta[:id] == id && meta[:type] == type}
 
       return unless managed_item
 
-      model = mapper.build_model(managed_item.value)
-      mapper.map(model, object, mapper_name)
-      managed_item.value = model.to_hash
+      value = managed_item.value
+
+      mapped_model = mapper.map_raw_data(value)
+
+      managed_item.value = mapped_model.to_hash
       managed_item.save!
       model
     end
 
-    def add(id, object, mapper_name = nil)
+    def add(id, object, type = nil)
     end
   end
 end

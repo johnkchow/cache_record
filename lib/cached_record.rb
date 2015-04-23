@@ -4,6 +4,7 @@ require 'cached_record/error'
 require "cached_record/util/assertion"
 
 require "cached_record/mapper"
+require "cached_record/mapper/mapped_model"
 
 require "cached_record/data_adapter/collection"
 
