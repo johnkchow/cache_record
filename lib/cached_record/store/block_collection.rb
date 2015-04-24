@@ -64,7 +64,7 @@ class CachedRecord
               elsif !meta_block.full? && (!next_meta_block || next_meta_block.can_insert_before?(key))
                 block, item_index = insert_within_block!(meta_block, meta_key, key, value)
                 break
-              elsif meta_block.can_insert_between?(key, next_meta_block)
+              elsif !next_meta_block || meta_block.can_insert_between?(key, next_meta_block)
                 block = create_new_block(meta_key, key, value)
                 item_index = 0
                 persist_block!(block)
@@ -133,7 +133,8 @@ class CachedRecord
         header.create_block(
           block_key: block.key,
           key: key,
-          meta_key: meta_key
+          meta_key: meta_key,
+          size: block_size,
         )
 
         block

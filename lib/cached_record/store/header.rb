@@ -4,8 +4,6 @@ class CachedRecord
       attr_reader :total_count, :meta_blocks, :key, :order, :block_size
 
       def initialize(data)
-        # TODO: need to fix this
-        #@block_size = data[:block_size] || 15 #CachedRecord.config.block_size
         @key = data[:key]
         @order = data.fetch(:order).to_sym
         @meta_blocks = (data[:blocks] || []).map { |b| MetaBlock.new(b, order) }
@@ -22,11 +20,11 @@ class CachedRecord
         @meta_blocks.inject(0) { |sum, block| sum + block.count }
       end
 
-      def create_block(block_key:, key:, meta_key:)
+      def create_block(block_key:, key:, meta_key:, size:)
         data = {
           key: block_key,
-          #size: block_size,
-          keys_data: [{key: key, meta: meta_key}]
+          keys_data: [{key: key, meta: meta_key}],
+          size: size,
         }
 
         new_block = MetaBlock.new(data, order)

@@ -76,6 +76,10 @@ RSpec.describe CachedRecord::Mapper do
         expect(model).to be_a(TestChildModel)
       end
     end
+
+    context "when the data_object's class isn't registered" do
+      it "raises an exception"
+    end
   end
 
   describe "#serialize_data" do
@@ -104,7 +108,7 @@ RSpec.describe CachedRecord::Mapper do
     context "when passing an invalid name" do
       it "should raise a MappingError" do
         expect { subject.serialize_data(data_object, name: :test_record_unknown) }.to raise_error(CachedRecord::MappingError)
-      end
+     end
     end
   end
 end

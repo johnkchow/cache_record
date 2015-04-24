@@ -66,10 +66,10 @@ class CachedRecord
       )
     end
 
-    def map_raw_data(raw_data)
+    def from_raw_data(raw_data)
       type = raw_data[:type]
 
-      map_data_object(raw_data, "raw_#{type}")
+      map_data_object(raw_data[:data], name: "raw_#{type}")
     end
 
     def serialize_data(data_object, name: nil)
