@@ -105,6 +105,7 @@ class CachedRecord
         end
 
         def should_resize?
+          debugger if size.nil?
           count >= size
         end
 

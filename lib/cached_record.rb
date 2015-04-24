@@ -12,6 +12,9 @@ require "cached_record/manager"
 
 require "cached_record/model/fields"
 
+require "cached_record/managed_collection"
+
+
 require "cached_record/store/split_array"
 require "cached_record/store/header/meta_block"
 require "cached_record/store/header"

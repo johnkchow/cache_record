@@ -18,6 +18,10 @@ class CachedRecord
         @header = get_header(header_key)
       end
 
+      def total_count
+        @header.total_count
+      end
+
       def items(offset:, limit:)
         block_keys, start_index = header.block_keys_for_offset_limit(offset, limit)
         blocks = get_blocks(block_keys)
@@ -39,36 +43,15 @@ class CachedRecord
       end
 
       def insert(meta_key, key, value)
-        # if we have no blocks
-        #   create new block
-        #   insert value into that block
-        # else if we find an existing block containing the key
-        #   if count < size, return that block
-        #   else
-        #     generate 2 new blocks with new cache keys
-        #     copy halves of the items from the original into the 2 blocks
-        #     update the new blocks first_key and last_key
-        #     replace the original metablock from header with new blocks info into header
-        #     we need to split the block into half
-        #     then determine if it lies within the first half block or 2nd half block
-        #     update the headers meta block info for existing block
-        #     save all 3 together
-        # else if we find first block where max_key < key and count < size
-        # else we find first block where key < min_key and count < size
-        # else we create a new block
-        #   if the key is less than min(min_keys)
-        #   create new block, insert before all blocks
-        #
-        #   if the key is > max(min_keys)
-        #   insert new block at the end of blocks
-
         if header.empty_blocks?
           block = create_new_block(meta_key, key, value)
+          item_index = 0
           persist_block!(block)
         else
           meta_blocks = header.meta_blocks
           if meta_blocks.first.can_insert_before?(key)
             block = create_new_block(meta_key, key, value)
+            item_index = 0
             persist_block!(block)
           else
             # NOTE: do binary search instead of linear
@@ -76,20 +59,28 @@ class CachedRecord
               next_meta_block = meta_blocks[i + 1]
 
               if meta_block.include_key?(key)
-                insert_within_block!(meta_block, meta_key, key, value)
+                block, item_index = insert_within_block!(meta_block, meta_key, key, value)
                 break
               elsif !meta_block.full? && (!next_meta_block || next_meta_block.can_insert_before?(key))
-                insert_within_block!(meta_block, meta_key, key, value)
+                block, item_index = insert_within_block!(meta_block, meta_key, key, value)
                 break
               elsif meta_block.can_insert_between?(key, next_meta_block)
                 block = create_new_block(meta_key, key, value)
+                item_index = 0
                 persist_block!(block)
                 break
               end
             end
           end
         end
+
         persist_header!
+
+        CachedRecord::Store::ManagedItem.new(
+          store: self,
+          block: block,
+          index: item_index,
+        )
       end
 
       def find_by_meta(&block)
@@ -125,6 +116,9 @@ class CachedRecord
         # rebalance keys/items if necessary with surrounding blocks
       end
 
+      def persist_block!(block)
+        store_adapter.write(block.key, block.to_hash)
+      end
 
       protected
 
@@ -132,10 +126,6 @@ class CachedRecord
 
       def persist_header!
         store_adapter.write(header.key, header.to_hash)
-      end
-
-      def persist_block!(block)
-        store_adapter.write(block.key, block.to_hash)
       end
 
       def create_new_block(meta_key, key, value)
@@ -174,6 +164,8 @@ class CachedRecord
 
           persist_block!(block)
         end
+
+        [block, index]
       end
 
       def split_block(block)
@@ -234,7 +226,7 @@ class CachedRecord
 
       def get_header(key)
         header_data = store_adapter.read(key) || fetch_header_attributes
-        Header.new(header_data.merge(key: key))
+        Header.new(header_data.merge(key: key, block_size: block_size))
       end
 
       def fetch_header_attributes

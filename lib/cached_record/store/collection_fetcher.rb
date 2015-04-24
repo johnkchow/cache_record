@@ -52,8 +52,3 @@ class CachedRecord
     end
   end
 end
-
-# Problem: When we serialize the data, how do we know what the sort key is
-#
-# 1. We force the user of the Mapper class to be aware of the sort key
-# 2. We secretly

@@ -1,55 +1,6 @@
 require 'spec_helper'
+require 'cached_record/store_adapter/memory'
 require 'awesome_print'
-
-class TestAdapter
-  def initialize(hash)
-    @hash = hash
-  end
-
-  def read(key)
-    @hash[key]
-  end
-
-  def read_multi(*keys)
-    keys.inject({}) do |hash, key|
-      hash[key] = @hash[key]
-      hash
-    end
-  end
-
-  def write(key, value)
-    @hash[key] = value
-  end
-end
-
-class TestDataFetcher
-  def initialize(keys, values)
-    @keys = keys
-    @values = values
-
-    @keys_index = {}
-    @keys.each_with_index do |k,i|
-      @keys_index[k] = i
-    end
-  end
-
-  def fetch_key_values(meta_keys)
-    keys = []
-    values = []
-    meta_keys.map do |h|
-      index = @keys_index[h[:meta]]
-      keys << @keys[index]
-      values << @values[index]
-    end
-    [keys, values]
-  end
-
-  def fetch_meta_keys
-    @keys.map do |k|
-      {key: k, meta: k}
-    end
-  end
-end
 
 RSpec.describe CachedRecord::Store::BlockCollection do
   subject do
@@ -68,10 +19,10 @@ RSpec.describe CachedRecord::Store::BlockCollection do
   let(:fetcher_keys) { missing_block_data.map {|k,v| v[:keys] }.flatten }
   let(:fetcher_values) { missing_block_data.map {|k,v| v[:values] }.flatten }
 
-  let(:mock_data_fetcher) { TestDataFetcher.new(fetcher_keys, fetcher_values) }
+  let(:mock_data_fetcher) { MockDataFetcher.new(fetcher_keys, fetcher_values) }
   let(:mock_store_adapter) do
     filtered_block_data = block_data.select { |k,v| v[:keys] }
-    TestAdapter.new(filtered_block_data.merge(header_key => header_data))
+    CachedRecord::StoreAdapter::Memory.new(filtered_block_data.merge(header_key => header_data))
   end
 
   let(:header_data) do
@@ -314,6 +265,34 @@ RSpec.describe CachedRecord::Store::BlockCollection do
           expect(block.max_key).to eq(1)
           expect(block.count).to eq(1)
           expect(block.values).to eq([1])
+        end
+
+        context "inserting multiple values that should create a new block" do
+          let(:inserting_values) do
+            [15, 2, 4, 19, 1, 19, 10, 17, 11, 20].map(&:to_s)
+          end
+
+          it "should correctly increase count" do
+            inserting_values.each do |i|
+              subject.insert(i, i, i)
+            end
+
+            expect(subject.total_count).to eq(inserting_values.count)
+          end
+
+          it "should create multiple blocks to fit all values" do
+            inserting_values.shuffle.each do |i|
+              subject.insert(i, i, i)
+            end
+          end
+
+          it "should return the values" do
+            inserting_values.shuffle.each do |i|
+              subject.insert(i, i, i)
+            end
+
+            expect(subject.items(offset: 0, limit: inserting_values.count)).to eq(inserting_values.sort)
+          end
         end
       end
 
