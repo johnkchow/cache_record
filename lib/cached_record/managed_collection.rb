@@ -25,19 +25,6 @@ class CachedRecord
       update_mapped_model(mapped_model) || insert_mapped_model(mapped_model)
     end
 
-    def update_model(model)
-      # return if the model hasn't been modified
-      #
-      # check hash to see where the block is loaded
-      # get the raw attributes for the model
-      # go into the block and update the appropriate item
-      #   check block hash to get model index; else build up hash
-      #   overwrite the element in array with the new attributes
-      # persist the block
-      #   serialize all block data
-      #   write to key
-    end
-
     def update(id, object, name = nil)
       mapped_model = mapper.map_data_object(object, name: name)
 

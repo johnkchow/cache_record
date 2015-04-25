@@ -19,13 +19,6 @@ class CachedRecord
         mappings[source] = default_options.merge(options)
       end
 
-      def default_options
-        #TODO
-        {
-          type: :default
-        }
-      end
-
       def mappings
         # TODO: not thread safe
         @mappings ||= {
@@ -39,6 +32,14 @@ class CachedRecord
         @version = v if v
 
         @version
+      end
+
+      protected
+
+      def default_options
+        {
+          type: :default
+        }
       end
     end
 
@@ -79,7 +80,6 @@ class CachedRecord
     end
 
     protected
-
 
     def map(model, data_object, name: nil)
       map_context = get_map_context!(data_object, name)
