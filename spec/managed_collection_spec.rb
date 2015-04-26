@@ -119,7 +119,7 @@ RSpec.describe CachedRecord::ManagedCollection do
     it "should return the sorted serialized values" do
       values = subject.values(limit: test_records.length)
       expect(values.length).to eq(test_records.length)
-      expect(values.map(&:model).map(&:id)).to eq(test_records.map(&:id).sort)
+      expect(values.map(&:id)).to eq(test_records.map(&:id).sort)
     end
   end
 

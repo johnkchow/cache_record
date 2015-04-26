@@ -10,7 +10,7 @@ class CachedRecord
 
     def values(offset: 0, limit:)
       items = store.items(offset: offset, limit: limit)
-      items.map { |i| mapper.from_raw_data(i) }
+      items.map { |i| mapper.from_raw_data(i).model }
     end
 
     def insert(id, object, name = nil)
