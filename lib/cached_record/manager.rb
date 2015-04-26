@@ -1,57 +1,73 @@
 class CachedRecord
   class Manager
     class << self
-      def mapper(mapper = nil)
-        if mapper
-          @mapper = mapper
-        else
-          @mapper
+      def mapper(mapper)
+        @mapper = mapper
+      end
+
+      def storage(type, options)
+        @store_options = options.merge(type: type)
+      end
+
+      def adapter(adapter)
+        if adapter
+          @data_adapter = adapter
         end
+        @data_adapter
       end
 
-      def storage(*args)
-        #todo
+      def build
+        self.new(
+          store_options: @store_options,
+          mapper: CachedRecord::Factory.build_mapper(@mapper),
+          data_adapter: CachedRecord::Factory.build_data_adapter(@data_adapter, @store_options[:sort_key]),
+        )
       end
 
-      def adapter(*args)
-        #todo
-      end
+      protected
     end
 
-    def initialize(store: nil, mapper: nil, data_adapter: nil)
+    def initialize(store_options:, mapper:, data_adapter:)
+      @store_options = store_options
+      @mapper = mapper
+      @data_adapter = data_adapter
     end
 
     # returns an managed item
     def fetch(id)
-      return unless store = get_store_for_key(cache_key(id))
-
-      build_managed_entity(store)
+      build_managed_entity(id)
     end
 
     protected
 
-    def get_store_for_key(key)
-      @stores[key] ||= store_class.new(key, store_options)
+    attr_reader :mapper, :data_adapter, :store
+
+    def cache_key(id)
+      "CachedRecord:#{self.class.name}:#{id}"
     end
 
-    def build_managed_entity(store)
-      if collection?
-        ManagedCollection.new(
-          store: store,
-          mapper: mapper
-        )
-      end
+    def build_managed_entity(id)
+      # TODO put this either in registry or factory
+      CachedRecord::ManagedCollection.new(
+        store: build_store(id),
+        mapper: mapper,
+        sort_key: sort_key,
+      )
     end
 
-    def collection?
-      true
+    def sort_key
+      @store_options.fetch(:sort_key)
     end
 
-    def adapter
-    end
+    def build_store(id)
+      options = @store_options.merge(
+        id: id,
+        cache_key: cache_key(id),
+        mapper: @mapper,
+        data_adapter: @data_adapter,
+      )
 
-    def mapper
-      self.class.mapper
+      CachedRecord::Factory.build_store(options)
     end
   end
 end

@@ -4,16 +4,16 @@ class CachedRecord
     # from the data_adapter and mapper. This allows the BlockCollection
     # to act more low level if needed
     class CollectionFetcher
-      attr_reader :data_adapter, :mapper, :sort_key
 
-      def initialize(data_adapter:, mapper:, sort_key:)
+      def initialize(id:, data_adapter:, mapper:, sort_key:)
+        @id = id
         @data_adapter = data_adapter
         @mapper = mapper
         @sort_key = sort_key
       end
 
       def fetch_meta_keys
-        data_adapter.fetch_meta_keys
+        data_adapter.fetch_meta_keys(id, sort_key: sort_key)
       end
 
       def fetch_key_values(meta_keys)
@@ -23,7 +23,12 @@ class CachedRecord
         values = Array.new(meta_keys.length)
 
         meta_keys.each_with_index do |hash, i|
-          id, type = hash.values_at(:id, :type)
+          meta_key = hash[:meta]
+          if meta_key.is_a?(Hash)
+            id, type = meta_key.values_at(:id, :type)
+          else
+            id = meta_key
+          end
           type ||= :default
 
           order[type] ||= {}
@@ -49,6 +54,10 @@ class CachedRecord
 
         [keys, values]
       end
+
+      protected
+
+      attr_reader :id, :data_adapter, :mapper, :sort_key
     end
   end
 end

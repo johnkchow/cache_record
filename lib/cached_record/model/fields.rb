@@ -33,13 +33,16 @@ class CachedRecord
         base.extend ClassMethods
       end
 
+      include CachedRecord::Util::Assertion
+
       attr_reader :attributes
 
-      def initialize(attributes = nil)
-        raise ArgumentError, "Attributes must be a hash" unless attributes
+      def initialize(attributes = {})
+        assert("Attributes must be a hash") { attributes.is_a?(Hash) }
+
         @attributes = {}
 
-        from_hash(attributes || {})
+        from_hash(attributes)
       end
 
       def from_hash(attributes)

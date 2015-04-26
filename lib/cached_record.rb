@@ -1,5 +1,8 @@
 require "red_black_tree"
 
+require 'cached_record/store_adapter'
+require 'cached_record/store/collection_fetcher'
+require 'cached_record/factory'
 require 'cached_record/error'
 require "cached_record/util/assertion"
 

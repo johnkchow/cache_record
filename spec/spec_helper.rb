@@ -1,5 +1,6 @@
 $LOAD_PATH.unshift File.expand_path('../../lib', __FILE__)
 require 'cached_record'
+require 'cached_record/store_adapter/memory'
 require 'byebug'
 require 'mocks/mock_data_fetcher'
 

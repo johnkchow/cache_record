@@ -1,6 +1,8 @@
 class CachedRecord
   class StoreAdapter
-    class Memory
+    class Memory < StoreAdapter
+      adapter :memory
+
       def initialize(hash = {})
         @hash = hash
       end

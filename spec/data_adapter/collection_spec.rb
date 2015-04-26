@@ -1,17 +1,19 @@
 require 'spec_helper'
 
 RSpec.describe CachedRecord::DataAdapter::Collection do
-  class TestCollectionDataAdapter < CachedRecord::DataAdapter::Collection
-    types :user, :blog
+  before(:all) do
+    class TestCollectionDataAdapter < CachedRecord::DataAdapter::Collection
+      types :user, :blog
 
-    def fetch_keys(ids, options)
-      {
-        user: [1,2,3],
-        blog: [4,5,6]
-      }
-    end
+      def fetch_keys(ids, options)
+        {
+          user: [1,2,3],
+          blog: [4,5,6]
+        }
+      end
 
-    def fetch_batch_for_type(ids, type, options)
+      def fetch_batch_for_type(ids, type, options)
+      end
     end
   end
 

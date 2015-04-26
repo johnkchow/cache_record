@@ -13,9 +13,13 @@ class CachedRecord
 
       attr_reader :types
 
-      def initialize(types: self.class.types, sort_key: nil)
+      def initialize(sort_key:, types: self.class.types)
         @types = types
         @sort_key = sort_key
+      end
+
+      def fetch_meta_keys(id, sort_key: self.sort_key)
+        raise NotImplementedError
       end
 
       def fetch_batch(ids, type)
@@ -23,10 +27,6 @@ class CachedRecord
       end
 
       def fetch_batch_for_type(ids, type, options)
-        raise NotImplementedError
-      end
-
-      def fetch_meta_keys
         raise NotImplementedError
       end
     end
