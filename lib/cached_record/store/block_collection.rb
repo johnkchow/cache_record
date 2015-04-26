@@ -43,14 +43,16 @@ class CachedRecord
       end
 
       def insert(meta_key, key, value)
+        found_meta_block = nil
+
         if header.empty_blocks?
-          block = create_new_block(meta_key, key, value)
+          found_meta_block, block = create_new_block(meta_key, key, value)
           item_index = 0
           persist_block!(block)
         else
           meta_blocks = header.meta_blocks
           if meta_blocks.first.can_insert_before?(key)
-            block = create_new_block(meta_key, key, value)
+            found_meta_block, block = create_new_block(meta_key, key, value)
             item_index = 0
             persist_block!(block)
           else
@@ -59,13 +61,13 @@ class CachedRecord
               next_meta_block = meta_blocks[i + 1]
 
               if meta_block.include_key?(key)
-                block, item_index = insert_within_block!(meta_block, meta_key, key, value)
+                found_meta_block, block, item_index = insert_within_block!(meta_block, meta_key, key, value)
                 break
               elsif !meta_block.full? && (!next_meta_block || next_meta_block.can_insert_before?(key))
-                block, item_index = insert_within_block!(meta_block, meta_key, key, value)
+                found_meta_block, block, item_index = insert_within_block!(meta_block, meta_key, key, value)
                 break
               elsif !next_meta_block || meta_block.can_insert_between?(key, next_meta_block)
-                block = create_new_block(meta_key, key, value)
+                found_meta_block, block = create_new_block(meta_key, key, value)
                 item_index = 0
                 persist_block!(block)
                 break
@@ -76,8 +78,12 @@ class CachedRecord
 
         persist_header!
 
+        assert("found_meta_block is not nil") { !found_meta_block.nil? }
+        assert("meta_block and block have same keys") { found_meta_block.key == block.key }
+
         CachedRecord::Store::ManagedItem.new(
           store: self,
+          meta_block: found_meta_block,
           block: block,
           index: item_index,
         )
@@ -86,8 +92,10 @@ class CachedRecord
       def find_by_meta(&block)
         found_block = nil
         found_index = nil
+        found_meta_block = nil
         header.meta_blocks.each do |meta_block|
           if index = meta_block.find_by_meta(&block)
+            found_meta_block = meta_block
             found_block = get_block(meta_block.key)
             found_index = index
           end
@@ -96,6 +104,7 @@ class CachedRecord
         if found_block
           CachedRecord::Store::ManagedItem.new(
             store: self,
+            meta_block: found_meta_block,
             block: found_block,
             index: found_index,
           )
@@ -120,28 +129,29 @@ class CachedRecord
         store_adapter.write(block.key, block.to_hash)
       end
 
-      protected
-
-      attr_reader :header_key
-
       def persist_header!
         store_adapter.write(header.key, header.to_hash)
       end
 
+      protected
+
+      attr_reader :header_key
+
       def create_new_block(meta_key, key, value)
         block = build_block(nil, keys: [key], values: [value])
-        header.create_block(
+        meta_block = header.create_block(
           block_key: block.key,
           key: key,
           meta_key: meta_key,
           size: block_size,
         )
 
-        block
+        [meta_block, block]
       end
 
       def insert_within_block!(meta_block, meta_key, key, value)
         block = get_block(meta_block.key)
+        found_meta_block = nil
         if meta_block.should_resize?
           split_meta_blocks = header.split_meta_block(meta_block.key)
           blocks = split_block(block)
@@ -155,6 +165,8 @@ class CachedRecord
             if !inserted && b.key_within_range?(key)
               index = b.insert(key, value)
               meta_block.insert(meta_key, key, index)
+              found_meta_block = meta_block
+              block = b
               inserted = true
             end
             persist_block!(b)
@@ -162,11 +174,12 @@ class CachedRecord
         else
           index = block.insert(key, value)
           meta_block.insert(meta_key, key, index)
+          found_meta_block = meta_block
 
           persist_block!(block)
         end
 
-        [block, index]
+        [found_meta_block, block, index]
       end
 
       def split_block(block)

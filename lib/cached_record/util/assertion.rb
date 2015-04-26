@@ -14,7 +14,9 @@ class CachedRecord
           raise ArgumentError
         end
 
-        raise AssertError, "Assertion failed: #{msg}" unless value
+        unless value
+          raise AssertError, "Assertion '#{msg}' failed"
+        end
       end
     end
   end

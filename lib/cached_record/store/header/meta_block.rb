@@ -34,6 +34,10 @@ class CachedRecord
           end
         end
 
+        def delete_at(index)
+          keys_data.delete_at(index)
+        end
+
         def max_key
           if data = keys_data.last
             data[:key]

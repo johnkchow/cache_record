@@ -51,6 +51,8 @@ class CachedRecord
         # insert at the end
         insert_before ||= -1
         meta_blocks.insert(insert_before, new_block)
+
+        new_block
       end
 
       def meta_keys_for_block_key(block_key)
@@ -67,6 +69,7 @@ class CachedRecord
       end
 
       def split_meta_block(block_key)
+        # TODO: linear search
         index = meta_blocks.index {|mb| mb.key == block_key }
         meta_block = meta_blocks[index]
         first, last = meta_block.split

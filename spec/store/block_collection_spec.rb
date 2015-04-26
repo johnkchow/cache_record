@@ -547,6 +547,15 @@ RSpec.describe CachedRecord::Store::BlockCollection do
       end
     end
   end
+
+  describe "#remove" do
+    context "simple asc order" do
+      include_context "simple asc order"
+
+      it "should reduce total count by 1" do
+      end
+    end
+  end
 end
 
 def block_values(key = header_key)

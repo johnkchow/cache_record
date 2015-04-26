@@ -31,7 +31,21 @@ class CachedRecord
       update_mapped_model(mapped_model)
     end
 
-    def add(id, object, type = nil)
+    def remove(id, name = nil)
+      return unless managed_item = find_store_item_by_id_type(id, name)
+
+      # We must capture the value before removing
+      value = managed_item.value
+
+      managed_item.remove!
+
+      mapper.from_raw_data(value)
+    end
+
+    def find(id, name = nil)
+      return unless managed_item = find_store_item_by_id_type(id, name)
+
+      mapper.from_raw_data(managed_item.value)
     end
 
     protected
@@ -63,7 +77,9 @@ class CachedRecord
     end
 
     # TODO: get the sort key, do binary search
-    def find_store_item_by_id_type(id, type)
+    def find_store_item_by_id_type(id, type = nil)
+      type = (type || :default).to_sym
+
       store.find_by_meta {|meta| meta[:id] == id && meta[:type] == type}
     end
   end

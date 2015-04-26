@@ -19,6 +19,11 @@ class CachedRecord
         keys.length
       end
 
+      def delete_at(index)
+        self.keys.delete_at(index)
+        self.values.delete_at(index)
+      end
+
       def min_key
         keys.first
       end
