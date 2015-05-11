@@ -58,7 +58,7 @@ class CachedRecord
       def data_fetcher_class(type)
         case type
         when :embedded
-          CachedRecord::Store::CollectionFetcher
+          CachedRecord::Store::DataAdapterBridgeFetcher
         end
       end
 

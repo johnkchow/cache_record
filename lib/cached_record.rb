@@ -1,7 +1,7 @@
 require "cached_record/configuration"
 
 require 'cached_record/store_adapter'
-require 'cached_record/store/collection_fetcher'
+require 'cached_record/store/data_adapter_bridge_fetcher'
 require 'cached_record/factory'
 require 'cached_record/error'
 require "cached_record/util/assertion"

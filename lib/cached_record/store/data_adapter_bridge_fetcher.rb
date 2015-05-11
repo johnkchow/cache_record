@@ -1,9 +1,6 @@
 class CachedRecord
   class Store
-    # Acts as a bridge for BlockCollection to fetch data and encapsulating it
-    # from the data_adapter and mapper. This allows the BlockCollection
-    # to act more low level if needed
-    class CollectionFetcher
+    class DataAdapterBridgeFetcher
 
       def initialize(id:, data_adapter:, mapper:, sort_key:)
         @id = id
