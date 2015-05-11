@@ -1,4 +1,4 @@
-require "red_black_tree"
+require "cached_record/configuration"
 
 require 'cached_record/store_adapter'
 require 'cached_record/store/collection_fetcher'
