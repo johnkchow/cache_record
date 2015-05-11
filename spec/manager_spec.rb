@@ -1,4 +1,5 @@
 require 'spec_helper'
+require 'cached_record/store_adapter/memcached'
 
 # QUESTION: How do we want to resolve the missing data?
 # Solution one: Inject the data_adapter into BlockCollection, and
@@ -68,11 +69,38 @@ RSpec.describe CachedRecord::Manager do
       mapper TestBlockMapper
       adapter TestBlockDataAdapter
     end
+
+    class TestEmbeddedBlockManagerWithMemcached < CachedRecord::Manager
+      storage :embedded,
+        sort_key: :prop,
+        block_size: 4,
+        order: :asc,
+        adapter: :memcached
+
+      mapper TestBlockMapper
+      adapter TestBlockDataAdapter
+    end
   end
 
   context "Embedded Block Store" do
     subject do
       TestEmbeddedBlockManager.build
+    end
+
+    describe "#fetch" do
+      let(:collection_owner_id) { 100 }
+
+      it "should return a ManagedCollection" do
+        managed_collection = subject.fetch(collection_owner_id)
+
+        expect(managed_collection).to be_a(CachedRecord::ManagedCollection)
+      end
+    end
+  end
+
+  context "Embedded Block Store with Memcached Adapter" do
+    subject do
+      TestEmbeddedBlockManagerWithMemcached.build
     end
 
     describe "#fetch" do
