@@ -28,4 +28,9 @@ require "cached_record/store/managed_item"
 require "cached_record/version"
 
 class CachedRecord
+  class << self
+    def config
+      @config ||= Configuration.new
+    end
+  end
 end
